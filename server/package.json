@@ -1,21 +1,23 @@
 {
-  "name": "talkverse-server",
-  "version": "1.0.0",
-  "description": "Backend server for TalkVerse",
-  "author": "Pranav",
-  "license": "ISC",
-  "type": "module",
-  "main": "src/index.js",
-  "scripts": {
-    "dev": "nodemon src/index.js",
-    "start": "node src/index.js",
-    "test": "echo \"No tests yet\""
-  },
-  "dependencies": {
-    "cookie-parser": "^1.4.7",
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "mongoose": "^9.7.4"
-  }
+    "name": "talkverse-server",
+    "version": "1.0.0",
+    "description": "Backend server for TalkVerse",
+    "author": "Pranav",
+    "license": "ISC",
+    "type": "module",
+    "main": "src/index.js",
+    "scripts": {
+        "dev": "nodemon src/index.js",
+        "start": "node src/index.js",
+        "test": "echo \"No tests yet\""
+    },
+    "dependencies": {
+        "bcrypt": "^6.0.0",
+        "cookie-parser": "^1.4.7",
+        "cors": "^2.8.6",
+        "dotenv": "^17.4.2",
+        "express": "^5.2.1",
+        "jsonwebtoken": "^9.0.3",
+        "mongoose": "^9.7.4"
+    }
 }
