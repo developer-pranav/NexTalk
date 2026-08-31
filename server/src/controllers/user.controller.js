@@ -207,16 +207,88 @@ const searchUser = asyncHandler(async (req, res) => {
 
 const getUser = asyncHandler(async (req, res) => {
     const { username } = req.params;
+
     if (!username?.trim()) {
-        throw new ApiError(400, "Something went wrong while finding username");
+        throw new ApiError(
+            400,
+            "Something went wrong while finding username"
+        );
     }
 
-    const user = await User.findOne(username);
+    const user = await User.findOne({ username })
+        .select("_id username fullname avatar bio");
+
+    if (!user) {
+        throw new ApiError(404, "User not found");
+    }
 
     return res.status(200).json(
-        new ApiResponse(200, user, "User details fetched successfully")
+        new ApiResponse(
+            200,
+            user,
+            "User details fetched successfully"
+        )
     );
-})
+});
+
+const updateProfile = asyncHandler(async (req, res) => {
+    const { fullname, bio } = req.body;
+
+    if (fullname !== undefined) {
+        req.user.fullname = fullname.trim();
+    }
+
+    if (bio !== undefined) {
+        req.user.bio = bio.trim();
+    }
+
+    await req.user.save();
+
+    const responseUser = req.user.toObject();
+
+    delete responseUser.password;
+    delete responseUser.refreshToken;
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            responseUser,
+            "Profile updated successfully"
+        )
+    );
+});
+
+const updateAvatar = asyncHandler(async (req, res) => {
+    if (!req.file) {
+        throw new ApiError(400, "Avatar is required");
+    }
+
+    const avatar = await uploadOnCloudinary(
+        req.file.path,
+        "NexTalk/Avatar"
+    );
+
+    if (!avatar) {
+        throw new ApiError(500, "Avatar upload failed");
+    }
+
+    req.user.avatar = avatar.secure_url;
+
+    await req.user.save();
+
+    const responseUser = req.user.toObject();
+
+    delete responseUser.password;
+    delete responseUser.refreshToken;
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            responseUser,
+            "Avatar updated successfully"
+        )
+    );
+});
 
 export {
     register,
@@ -224,5 +296,8 @@ export {
     logout,
     getCurrentUser,
     refreshAccessToken,
-    searchUser
+    searchUser,
+    getUser,
+    updateProfile,
+    updateAvatar
 }

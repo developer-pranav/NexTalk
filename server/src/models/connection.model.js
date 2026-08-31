@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { User } from "../models/user.model.js";
 
 const connectionSchema = new mongoose.Schema(
     {
@@ -7,19 +8,27 @@ const connectionSchema = new mongoose.Schema(
             ref: "User",
             required: true
         },
+
         receiver: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
             required: true
         },
+
         status: {
             type: String,
-            enum: ["pending", "accepted", "rejected", "blocked"],
+            enum: ["pending", "friend", "rejected", "blocked"],
             required: true
+        },
+
+        blockedBy: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User"
         }
-    },{
+    },
+    {
         timestamps: true
     }
-)
+);
 
-const Connection = mongoose.model("Connection", connectionSchema)
+export const Connection = mongoose.model("Connection", connectionSchema);
