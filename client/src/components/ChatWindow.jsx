@@ -153,7 +153,6 @@ export default function ChatWindow({ contact, onBack }) {
                     top-0
                     z-10
                     h-28
-                    sm:h-36
                 "
                 style={{
                     background: `linear-gradient(
@@ -232,7 +231,7 @@ export default function ChatWindow({ contact, onBack }) {
                     bottom-0
                     z-10
                     h-26
-                    sm:h-44
+                    sm:h-38
                 "
                 style={{
                     background: `linear-gradient(
