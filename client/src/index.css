@@ -1,111 +1,520 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------- */
+/* Theme tokens                                                      */
+/* Default = light. [data-theme="dark"] overrides. System preference */
+/* is resolved to one of these two in JS (ThemeContext) so components*/
+/* never have to branch on prefers-color-scheme themselves.          */
+/* ---------------------------------------------------------------- */
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+    --bg: #f6f6f4;
+    --bg-rgb: 246, 246, 244;
+    --surface: #ffffff;
+    --surface-2: #eeeeec;
+    --surface-hover: #e9e9e6;
+    --border: #e2e2de;
+    --border-strong: #d3d3ce;
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
+    --text: #17171a;
+    --text-muted: #6c6c72;
+    --text-faint: #a2a2a7;
 
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+    --accent: #3454d1;
+    --accent-hover: #2a44ad;
+    --accent-soft: rgba(52, 84, 209, 0.1);
+    --accent-text: #ffffff;
 
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
+    --online: #1f9d63;
+    --danger: #d1473c;
+    --danger-soft: rgba(209, 71, 60, 0.12);
+
+    --bubble-sent: var(--accent);
+    --bubble-sent-text: #ffffff;
+    --bubble-received: #ffffff;
+    --bubble-received-text: var(--text);
+    --bubble-received-border: var(--border);
+
+    --shadow-sm: 0 1px 2px rgba(20, 20, 15, 0.04), 0 1px 1px rgba(20, 20, 15, 0.03);
+    --shadow-md: 0 8px 24px rgba(20, 20, 15, 0.08), 0 2px 6px rgba(20, 20, 15, 0.04);
+    --shadow-lg: 0 20px 48px rgba(20, 20, 15, 0.16), 0 4px 12px rgba(20, 20, 15, 0.06);
+
+    --scrollbar-thumb: rgba(0, 0, 0, 0.14);
+    color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
+[data-theme="dark"] {
+    --bg: #0f1013;
+    --bg-rgb: 15, 16, 19;
+    --surface: #17181c;
+    --surface-2: #1e1f24;
+    --surface-hover: #24252b;
+    --border: #2a2b31;
+    --border-strong: #35363d;
 
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
+    --text: #f1f1ef;
+    --text-muted: #98989f;
+    --text-faint: #67676f;
+
+    --accent: #6e8bff;
+    --accent-hover: #86a0ff;
+    --accent-soft: rgba(110, 139, 255, 0.16);
+    --accent-text: #0b0e1a;
+
+    --online: #35c47c;
+    --danger: #f0685f;
+    --danger-soft: rgba(240, 104, 95, 0.14);
+
+    --bubble-sent: var(--accent);
+    --bubble-sent-text: #0b0e1a;
+    --bubble-received: #1c1d22;
+    --bubble-received-text: var(--text);
+    --bubble-received-border: var(--border);
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.36);
+    --shadow-lg: 0 24px 56px rgba(0, 0, 0, 0.5);
+
+    --scrollbar-thumb: rgba(255, 255, 255, 0.14);
+    color-scheme: dark;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+    height: 100%;
 }
 
 body {
-  margin: 0;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior-y: none;
+    transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
+button {
+    font-family: inherit;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
+/* Thin themed scrollbars */
+.scroll-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
 }
 
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
-p {
-  margin: 0;
+.scroll-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
-  display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+.scroll-thin::-webkit-scrollbar-track {
+    background: transparent;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+.scroll-thin::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 999px;
+}
+
+/* ---------------------------------------------------------------- */
+/* Motion                                                             */
+/* ---------------------------------------------------------------- */
+
+@keyframes bubble-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.anim-bubble-in {
+    animation: bubble-in 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes typing-dot {
+
+    0%,
+    60%,
+    100% {
+        transform: translateY(0);
+        opacity: 0.45;
+    }
+
+    30% {
+        transform: translateY(-3px);
+        opacity: 1;
+    }
+}
+
+.anim-typing-dot {
+    animation: typing-dot 1.1s ease-in-out infinite;
+}
+
+@keyframes spin-slow {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.anim-spin {
+    animation: spin-slow 0.7s linear infinite;
+}
+
+@keyframes pull-bounce {
+    0% {
+        transform: scale(0.6);
+        opacity: 0;
+    }
+
+    60% {
+        transform: scale(1.05);
+        opacity: 1;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.anim-pull-in {
+    animation: pull-bounce 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes slide-in-right {
+    from {
+        transform: translateX(100%);
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
+.anim-slide-in-right {
+    animation: slide-in-right 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes slide-in-left {
+    from {
+        transform: translateX(-24px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.anim-slide-in-left {
+    animation: slide-in-left 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes sheet-up {
+    from {
+        transform: translateY(100%);
+    }
+
+    to {
+        transform: translateY(0);
+    }
+}
+
+.anim-sheet-up {
+    animation: sheet-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes popup-in {
+    from {
+        opacity: 0;
+        transform: scale(0.82) translate(-18px, 18px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translate(0, 0);
+    }
+}
+
+.anim-popup-in {
+    transform-origin: bottom left;
+    animation: popup-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Mirror of .anim-popup-in but growing from the opposite corner (top
+   right instead of bottom left) — used for popups anchored near a
+   top-right trigger, like the "new group" button in the list header,
+   so the expansion direction matches where it visually opened from. */
+@keyframes popup-in-tr {
+    from {
+        opacity: 0;
+        transform: scale(0.82) translate(18px, -18px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translate(0, 0);
+    }
+}
+
+.anim-popup-in-tr {
+    transform-origin: top right;
+    animation: popup-in-tr 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.anim-fade-in {
+    animation: fade-in 0.2s ease both;
+}
+
+@keyframes pop-in {
+    from {
+        opacity: 0;
+        transform: scale(0.94) translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.anim-pop-in {
+    animation: pop-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .anim-bubble-in,
+    .anim-typing-dot,
+    .anim-spin,
+    .anim-pull-in,
+    .anim-slide-in-right,
+    .anim-slide-in-left,
+    .anim-sheet-up,
+    .anim-fade-in,
+    .anim-pop-in,
+    .anim-popup-in,
+    .anim-popup-in-tr {
+        animation: none !important;
+    }
+}
+
+/* Modal opens from the trigger and expands to center */
+@keyframes modal-trigger-in {
+    from {
+        opacity: 0;
+        transform: scale(0.08);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes modal-trigger-out {
+    from {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    to {
+        opacity: 0;
+        transform: scale(0.08);
+    }
+}
+
+/*
+ * Desktop/tablet:
+ * modal is centered, so convert viewport trigger coordinates
+ * into coordinates relative to the centered modal.
+ */
+.anim-modal-in,
+.anim-modal-out {
+    transform-origin:
+        calc(var(--trigger-x, 50vw) - 50vw + 50%) calc(var(--trigger-y, 50vh) - 50vh + 50%);
+}
+
+.anim-modal-in {
+    animation:
+        modal-trigger-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.anim-modal-out {
+    animation:
+        modal-trigger-out 0.3s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@keyframes modal-overlay-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes modal-overlay-out {
+    from {
+        opacity: 1;
+    }
+
+    to {
+        opacity: 0;
+    }
+}
+
+.anim-modal-backdrop-in {
+    animation:
+        modal-overlay-in 0.22s ease both;
+}
+
+.anim-modal-backdrop-out {
+    animation:
+        modal-overlay-out 0.3s ease both;
+}
+
+/* Mobile = fullscreen, so trigger coordinates are viewport coordinates */
+@media (max-width: 767px) {
+
+    .anim-modal-in,
+    .anim-modal-out {
+        transform-origin:
+            var(--trigger-x, 50vw) var(--trigger-y, 50vh);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .anim-modal-in,
+    .anim-modal-out,
+    .anim-modal-backdrop-in,
+    .anim-modal-backdrop-out {
+        animation: none !important;
+    }
+}
+
+/* Mobile navigation motion: chat opens right -> left and closes left -> right. */
+@keyframes chat-slide-in-right {
+    from {
+        transform: translateX(100%);
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
+.anim-chat-slide-in-right {
+    animation: chat-slide-in-right 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes chat-slide-out-right {
+    from {
+        transform: translateX(0);
+    }
+
+    to {
+        transform: translateX(100%);
+    }
+}
+
+.anim-chat-slide-out-right {
+    animation: chat-slide-out-right 0.28s cubic-bezier(0.4, 0, 1, 1) both;
+}
+
+@keyframes mobile-page-in {
+    from {
+        transform: translateX(100%);
+        opacity: 0.98;
+    }
+
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.anim-mobile-page-in {
+    animation: mobile-page-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .anim-chat-slide-in-right,
+    .anim-chat-slide-out-right,
+    .anim-mobile-page-in {
+        animation: none !important;
+    }
+}
+
+/* Hide all scrollbars globally, keep scrolling enabled */
+* {
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+}
+
+*::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+}
+/* Scrollbars are hidden globally above, so when an ActionMenu's content is
+   taller than its available space, fade the bottom edge to signal that it
+   scrolls rather than looking like it was cut off. */
+.action-menu-scrollable {
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%);
+}
+
+@keyframes action-menu-in {
+    from {
+        opacity: 0;
+        transform: scale(0.72) translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+@keyframes action-menu-out {
+    from {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+    to {
+        opacity: 0;
+        transform: scale(0.94) translateY(-3px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    [role="menu"] {
+        animation: none !important;
+    }
 }
