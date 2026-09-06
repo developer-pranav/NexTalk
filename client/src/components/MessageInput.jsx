@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     AudioLines,
     Camera,
@@ -21,6 +21,9 @@ export default function MessageInput({
     onNotify,
     replyTo = null,
     onCancelReply,
+    editingMessage = null,
+    onEdit,
+    onCancelEdit,
 }) {
     const [value, setValue] = useState("");
     const [attachmentOpen, setAttachmentOpen] = useState(false);
@@ -28,6 +31,20 @@ export default function MessageInput({
     const plusRef = useRef(null);
 
     const hasText = value.trim().length > 0;
+
+    useEffect(() => {
+        if (editingMessage) {
+            setValue(editingMessage.text || "");
+            requestAnimationFrame(() => {
+                if (taRef.current) {
+                    grow(taRef.current);
+                    taRef.current.focus();
+                    taRef.current.setSelectionRange(taRef.current.value.length, taRef.current.value.length);
+                }
+            });
+        }
+    }, [editingMessage]);
+
 
     const grow = (el) => {
         el.style.height = "auto";
@@ -42,9 +59,14 @@ export default function MessageInput({
     const submit = () => {
         if (!value.trim()) return;
 
-        onSend(value, replyTo);
+        if (editingMessage) {
+            onEdit?.(value);
+        } else {
+            onSend(value, replyTo);
+        }
 
         setValue("");
+        onCancelEdit?.();
 
         if (taRef.current) {
             taRef.current.style.height = "auto";
@@ -113,6 +135,15 @@ export default function MessageInput({
         transparent
       "
         >
+            {editingMessage && (
+                <div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 rounded-xl border px-3 py-2" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
+                    <div className="min-w-0 flex-1 border-l-2 pl-2" style={{ borderColor: "var(--accent)" }}>
+                        <p className="text-[11px] font-semibold" style={{ color: "var(--accent)" }}>Editing message</p>
+                        <p className="truncate text-[12px]" style={{ color: "var(--text-muted)" }}>{editingMessage.text}</p>
+                    </div>
+                    <button type="button" onClick={onCancelEdit} className="grid h-7 w-7 shrink-0 place-items-center rounded-full" style={{ color: "var(--text-muted)" }} aria-label="Cancel edit">×</button>
+                </div>
+            )}
             {replyTo && (
                 <div className="mx-auto mb-2 flex max-w-3xl items-center gap-2 rounded-xl border px-3 py-2" style={{ background: "var(--surface)", borderColor: "var(--border)" }}>
                     <div className="min-w-0 flex-1 border-l-2 pl-2" style={{ borderColor: "var(--accent)" }}>

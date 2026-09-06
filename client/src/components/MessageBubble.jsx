@@ -147,6 +147,9 @@ export default function MessageBubble({ message, showAuthor, animate, onMenu, on
           className={`mt-1 flex items-center gap-1 text-[11px] ${isMe ? "justify-end" : "justify-start"}`}
           style={{ color: isMe ? "var(--bubble-sent-text)" : "var(--text-faint)", opacity: isMe ? 0.72 : 1 }}
         >
+          {message.edited && !message.deleted && (
+            <span className="font-medium" style={{ opacity: 0.8 }}>Edited</span>
+          )}
           <span>{message.time}</span>
           {isMe && !message.deleted && <StatusIcon status={message.status} />}
         </div>

@@ -95,6 +95,22 @@ export function ChatProvider({ children }) {
     }));
   }, []);
 
+  const editMessage = useCallback((chatId, messageId, text) => {
+    const trimmed = text.trim();
+    if (!trimmed) return false;
+
+    let edited = false;
+    setMessagesByChat((prev) => ({
+      ...prev,
+      [chatId]: (prev[chatId] || []).map((message) => {
+        if (message.id !== messageId || message.from !== "me" || message.deleted) return message;
+        edited = true;
+        return { ...message, text: trimmed, edited: true, editedAt: Date.now() };
+      }),
+    }));
+    return edited;
+  }, []);
+
   const deleteMessage = useCallback((chatId, messageId) => {
     setMessagesByChat((prev) => ({
       ...prev,
@@ -219,6 +235,7 @@ export function ChatProvider({ children }) {
       messagesByChat,
       sendMessage,
       deleteMessage,
+      editMessage,
       forwardMessage,
       createGroup,
       clearChat,
@@ -240,6 +257,7 @@ export function ChatProvider({ children }) {
       messagesByChat,
       sendMessage,
       deleteMessage,
+      editMessage,
       forwardMessage,
       createGroup,
       clearChat,

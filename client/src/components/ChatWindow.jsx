@@ -6,7 +6,6 @@ import MessageInput from "./MessageInput";
 import ChatOptionsMenu from "./ChatOptionsMenu";
 import ContactProfilePopup from "./ContactProfilePopup";
 import Toast from "./Toast";
-import ConfirmModal from "./ConfirmModal";
 import ChatSearchBar from "./ChatSearchBar";
 import { useChat } from "../context/ChatContext";
 
@@ -53,7 +52,7 @@ export default function ChatWindow({ contact, onBack }) {
         clearChat,
         toggleBlock,
         toggleMute,
-        unfriend,
+        deleteChat,
     } = useChat();
 
     const messages = messagesByChat[contact.id] || [];
@@ -65,8 +64,6 @@ export default function ChatWindow({ contact, onBack }) {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchIndex, setSearchIndex] = useState(0);
     const [searchCount, setSearchCount] = useState(0);
-    const [replyTo, setReplyTo] = useState(null);
-    const [confirmAction, setConfirmAction] = useState(null);
 
     useEffect(() => {
         if (!toastMsg) return;
@@ -128,7 +125,6 @@ export default function ChatWindow({ contact, onBack }) {
                 messages={messages}
                 isGroup={contact.isGroup}
                 onNotify={setToastMsg}
-                onReply={setReplyTo}
                 searchQuery={searchQuery}
                 searchIndex={searchIndex}
                 onSearchMatches={handleSearchMatches}
@@ -156,15 +152,15 @@ export default function ChatWindow({ contact, onBack }) {
                     right-0
                     top-0
                     z-10
-                    h-32
+                    h-28
                     sm:h-36
                 "
                 style={{
                     background: `linear-gradient(
                         to bottom,
                         rgba(var(--bg-rgb), 1) 0%,
-                        rgba(var(--bg-rgb), 1) 45%,
-                        rgba(var(--bg-rgb), 0.65) 60%,
+                        rgba(var(--bg-rgb), 1) 10%,
+                        rgba(var(--bg-rgb), 0.65) 30%,
                         rgba(var(--bg-rgb), 0.30) 78%,
                         rgba(var(--bg-rgb), 0) 100%
                     )`,
@@ -184,6 +180,7 @@ export default function ChatWindow({ contact, onBack }) {
                 look.
             ====================================================== */}
 
+            {/* Chat header */}
             <div className="absolute inset-x-0 top-0 z-30">
                 <ChatHeader
                     contact={contact}
@@ -195,19 +192,27 @@ export default function ChatWindow({ contact, onBack }) {
                     onOpenMenu={(rect) => setMenuAnchor(rect)}
                     onOpenSearch={() => setSearchOpen(true)}
                 />
-
-                {searchOpen && (
-                    <ChatSearchBar
-                        query={searchQuery}
-                        onQueryChange={(value) => { setSearchQuery(value); setSearchIndex(0); }}
-                        matchIndex={searchIndex}
-                        matchCount={searchCount}
-                        onPrev={previousSearch}
-                        onNext={nextSearch}
-                        onClose={closeSearch}
-                    />
-                )}
             </div>
+
+            {/* Conversation search — floating overlay, NOT part of header layout */}
+            {searchOpen && (
+                <div className="absolute inset-x-0 top-[68px] z-40 pointer-events-none">
+                    <div className="pointer-events-auto">
+                        <ChatSearchBar
+                            query={searchQuery}
+                            onQueryChange={(value) => {
+                                setSearchQuery(value);
+                                setSearchIndex(0);
+                            }}
+                            matchIndex={searchIndex}
+                            matchCount={searchCount}
+                            onPrev={previousSearch}
+                            onNext={nextSearch}
+                            onClose={closeSearch}
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* =====================================================
                 BOTTOM FADE
@@ -226,7 +231,7 @@ export default function ChatWindow({ contact, onBack }) {
                     right-0
                     bottom-0
                     z-10
-                    h-40
+                    h-26
                     sm:h-44
                 "
                 style={{
@@ -254,12 +259,7 @@ export default function ChatWindow({ contact, onBack }) {
 
             <div className="absolute inset-x-0 bottom-0 z-20">
                 <MessageInput
-                    onSend={(text, reply) => {
-                        sendMessage(contact.id, text, reply);
-                        setReplyTo(null);
-                    }}
-                    replyTo={replyTo}
-                    onCancelReply={() => setReplyTo(null)}
+                    onSend={(text) => sendMessage(contact.id, text)}
                     disabled={isBlocked}
                     disabledMessage={`You've blocked ${contact.name}`}
                     onNotify={setToastMsg}
@@ -283,22 +283,9 @@ export default function ChatWindow({ contact, onBack }) {
                     onClearChat={clearChat}
                     onToggleMute={toggleMute}
                     onToggleBlock={toggleBlock}
-                    onUnfriend={unfriend}
-                    onRequestConfirm={(config) => setConfirmAction(config)}
+                    onDeleteChat={deleteChat}
                 />
             )}
-
-            <ConfirmModal
-                open={Boolean(confirmAction)}
-                title={confirmAction?.title}
-                message={confirmAction?.message}
-                confirmLabel={confirmAction?.confirmLabel}
-                onClose={() => setConfirmAction(null)}
-                onConfirm={() => {
-                    confirmAction?.action?.();
-                    setConfirmAction(null);
-                }}
-            />
         </div>
     );
 }

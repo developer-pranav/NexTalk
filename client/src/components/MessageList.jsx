@@ -10,7 +10,7 @@ import { useRubberband } from "../hooks/useRubberband";
 
 const REFRESH_TRIGGER_PX = 40;
 
-export default function MessageList({ chatId, messages, isGroup, onNotify, onReply, searchQuery = "", searchIndex = 0, onSearchMatches, searchOpen = false }) {
+export default function MessageList({ chatId, messages, isGroup, onNotify, onReply, onEdit, searchQuery = "", searchIndex = 0, onSearchMatches, searchOpen = false }) {
     const { loadOlderMessages, hasMoreOlder, refreshingChatId, typingChatId, deleteMessage, contacts, forwardMessage } = useChat();
     const scrollRef = useRef(null);
     const contentRef = useRef(null);
@@ -198,6 +198,8 @@ export default function MessageList({ chatId, messages, isGroup, onNotify, onRep
                     onCopy={() => handleCopy(menu.message)}
                     onForward={() => { handleForward(menu.message); closeMenu(); }}
                     onSelect={() => handleSelect(menu.message)}
+                    canEdit={menu.message.from === "me" && !menu.message.deleted}
+                    onEdit={() => { onEdit?.(menu.message); closeMenu(); }}
                     canDelete={menu.message.from === "me" && !menu.message.deleted}
                     onDelete={() => { handleDelete(menu.message); closeMenu(); }}
                 />
