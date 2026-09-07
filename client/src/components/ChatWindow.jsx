@@ -132,15 +132,14 @@ export default function ChatWindow({ contact, onBack }) {
                     right-0
                     top-0
                     z-10
-                    h-32
-                    sm:h-36
+                    h-28
                 "
                 style={{
                     background: `linear-gradient(
                         to bottom,
                         rgba(var(--bg-rgb), 1) 0%,
-                        rgba(var(--bg-rgb), 1) 45%,
-                        rgba(var(--bg-rgb), 0.65) 60%,
+                        rgba(var(--bg-rgb), 1) 10%,
+                        rgba(var(--bg-rgb), 0.75) 60%,
                         rgba(var(--bg-rgb), 0.30) 78%,
                         rgba(var(--bg-rgb), 0) 100%
                     )`,
@@ -182,8 +181,7 @@ export default function ChatWindow({ contact, onBack }) {
                     right-0
                     bottom-0
                     z-10
-                    h-40
-                    sm:h-44
+                    h-34
                 "
                 style={{
                     background: `linear-gradient(
