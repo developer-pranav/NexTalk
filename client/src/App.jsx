@@ -6,23 +6,23 @@ import TabletLayout from "./layouts/TabletLayout";
 import MobileLayout from "./layouts/MobileLayout";
 
 function Shell() {
-  const breakpoint = useBreakpoint();
+    const breakpoint = useBreakpoint();
 
-  return (
-    <div className="h-full w-full overflow-hidden">
-      {breakpoint === "mobile" && <MobileLayout />}
-      {breakpoint === "tablet" && <TabletLayout />}
-      {breakpoint === "desktop" && <DesktopLayout />}
-    </div>
-  );
+    return (
+        <div className="h-full w-full overflow-hidden">
+            {breakpoint === "mobile" && <MobileLayout />}
+            {breakpoint === "tablet" && <TabletLayout />}
+            {breakpoint === "desktop" && <DesktopLayout />}
+        </div>
+    );
 }
 
 export default function App() {
-  return (
-    <ThemeProvider>
-      <ChatProvider>
-        <Shell />
-      </ChatProvider>
-    </ThemeProvider>
-  );
+    return (
+        <ThemeProvider>
+            <ChatProvider>
+                <Shell />
+            </ChatProvider>
+        </ThemeProvider>
+    );
 }

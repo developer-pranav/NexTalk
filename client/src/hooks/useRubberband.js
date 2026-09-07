@@ -63,15 +63,6 @@ export function useRubberband(scrollRef, contentRef) {
             const atBottom =
                 scrollEl.scrollTop >= maxScroll - 1;
 
-            /*
-             * --------------------------------------------------
-             * TOP
-             * --------------------------------------------------
-             *
-             * Normal scrolling happens first.
-             * Once the actual top is reached and the finger
-             * continues moving DOWN, start the rubberband.
-             */
             if (state.edge === null && atTop) {
                 if (y > state.edgeY) {
                     state.edge = "top";
@@ -79,16 +70,6 @@ export function useRubberband(scrollRef, contentRef) {
                 }
             }
 
-            /*
-             * --------------------------------------------------
-             * BOTTOM
-             * --------------------------------------------------
-             *
-             * This is the important part.
-             *
-             * We detect the bottom DURING the gesture rather
-             * than checking where the gesture started.
-             */
             if (state.edge === null && atBottom) {
                 if (y < state.edgeY) {
                     state.edge = "bottom";
@@ -96,11 +77,6 @@ export function useRubberband(scrollRef, contentRef) {
                 }
             }
 
-            /*
-             * --------------------------------------------------
-             * RUBBERBAND
-             * --------------------------------------------------
-             */
             if (state.edge === "top") {
                 const pull = y - state.edgeY;
 
@@ -131,12 +107,6 @@ export function useRubberband(scrollRef, contentRef) {
                 return;
             }
 
-            /*
-             * Remember the latest finger position while the
-             * browser is doing normal scrolling.
-             *
-             * This lets us detect exactly when the edge is hit.
-             */
             state.edgeY = y;
         };
 

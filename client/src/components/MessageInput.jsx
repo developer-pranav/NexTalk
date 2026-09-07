@@ -35,11 +35,22 @@ export default function MessageInput({
     useEffect(() => {
         if (editingMessage) {
             setValue(editingMessage.text || "");
+
             requestAnimationFrame(() => {
                 if (taRef.current) {
                     grow(taRef.current);
                     taRef.current.focus();
-                    taRef.current.setSelectionRange(taRef.current.value.length, taRef.current.value.length);
+
+                    const length = taRef.current.value.length;
+                    taRef.current.setSelectionRange(length, length);
+                }
+            });
+        } else {
+            setValue("");
+
+            requestAnimationFrame(() => {
+                if (taRef.current) {
+                    taRef.current.style.height = "auto";
                 }
             });
         }

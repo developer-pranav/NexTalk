@@ -1,7 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-// ACTIONMENU_BUILD: fixed-v3 — removed self-observing ResizeObserver feedback loop.
 const GAP = 8;
 const VIEWPORT_PAD = 12;
 const ANIMATION_MS = 170;
@@ -41,15 +40,12 @@ export default function ActionMenu({
 
     useLayoutEffect(() => {
         const menu = menuRef.current;
-        // A context-menu point is already in viewport coordinates. Normalize it
-        // once so portal/fixed positioning never falls back to an invalid anchor.
         const contextPoint = point && Number.isFinite(point.x) && Number.isFinite(point.y)
             ? { x: point.x, y: point.y }
             : null;
         if (!menu) return;
 
         if (!contextPoint && !anchorRect) {
-            // eslint-disable-next-line no-console
             console.warn("[ActionMenu] opened with no anchorRect and no point — it will center itself.");
         }
 
@@ -58,9 +54,6 @@ export default function ActionMenu({
                 const { width: vw, height: vh, offsetLeft: vx, offsetTop: vy } = getViewport();
                 const menuWidth = Math.min(width, Math.max(1, vw - VIEWPORT_PAD * 2));
 
-                // Always measure the real, unrestricted menu. This is important:
-                // measuring scrollHeight after a max-height has been applied can
-                // make the menu appear shorter than it actually is.
                 menu.style.width = `${menuWidth}px`;
                 menu.style.maxHeight = "none";
                 menu.style.height = "auto";
@@ -68,36 +61,20 @@ export default function ActionMenu({
                 menu.style.left = `${vx + VIEWPORT_PAD}px`;
                 menu.style.top = `${vy + VIEWPORT_PAD}px`;
 
-                /*
-                 * IMPORTANT: do not use getBoundingClientRect() here.
-                 * The menu has an opening scale animation, so its first
-                 * bounding rect is transformed (roughly 0.72x). That made
-                 * us believe a 6-item menu was only ~200px tall and then
-                 * permanently limited maxHeight to that smaller number.
-                 * scrollHeight is the layout/content height and is not
-                 * affected by the transform animation.
-                 */
                 const naturalHeight = Math.max(1, menu.scrollHeight + 2);
 
                 const viewTop = vy + VIEWPORT_PAD;
                 const viewBottom = vy + vh - VIEWPORT_PAD;
                 const viewLeft = vx + VIEWPORT_PAD;
                 const viewRight = vx + vw - VIEWPORT_PAD;
-                // Total usable space is always at least this much (guards against
-                // a viewport smaller than 2x the padding).
                 const availableViewportHeight = Math.max(1, viewBottom - viewTop);
 
-                // Anchor edges: where "below" starts and where "above" ends,
-                // for either a point (long-press / right-click) or a rect anchor
-                // (a button's bounding box).
                 let belowStart, aboveEnd, preferredLeftFor;
 
                 if (contextPoint) {
                     belowStart = contextPoint.y + GAP;
                     aboveEnd = contextPoint.y - GAP;
                     preferredLeftFor = (side) => {
-                        // Prefer opening to the right of the point, flip to the
-                        // left of the point only if the right side doesn't fit.
                         const rightLeft = contextPoint.x + GAP;
                         const leftLeft = contextPoint.x - menuWidth - GAP;
                         if (rightLeft + menuWidth <= viewRight) return { left: rightLeft, origin: side === "below" ? "top left" : "bottom left" };
@@ -108,8 +85,6 @@ export default function ActionMenu({
                     belowStart = anchorRect.bottom + GAP;
                     aboveEnd = anchorRect.top - GAP;
                     preferredLeftFor = (side) => {
-                        // Prefer right-aligning the menu under/over the anchor,
-                        // flip to left-aligned if that would run off-screen.
                         const rightLeft = anchorRect.right - menuWidth;
                         const leftLeft = anchorRect.left;
                         if (rightLeft >= viewLeft) return { left: rightLeft, origin: side === "below" ? "top right" : "bottom right" };
@@ -125,9 +100,6 @@ export default function ActionMenu({
                 const spaceBelow = Math.max(0, viewBottom - belowStart);
                 const spaceAbove = Math.max(0, aboveEnd - viewTop);
 
-                // Prefer whichever side actually fits the full menu; if neither
-                // does, pick the side with more room so we crop as little as
-                // possible (the menu itself is scrollable as a last resort).
                 let side;
                 if (placement === "top") {
                     side = spaceAbove >= naturalHeight || spaceAbove >= spaceBelow ? "above" : "below";
@@ -150,8 +122,6 @@ export default function ActionMenu({
                 } else {
                     top = aboveEnd - maxHeight;
                 }
-                // Always clamp fully inside the viewport, even in the rare case
-                // where the anchor itself sits outside the usable area.
                 top = clamp(top, viewTop, Math.max(viewTop, viewBottom - maxHeight));
 
                 const { left: rawLeft, origin } = preferredLeftFor(side);
@@ -160,7 +130,6 @@ export default function ActionMenu({
                 setPosition({ left, top, width: menuWidth, maxHeight, origin });
                 menu.style.visibility = "visible";
             } catch (err) {
-                // eslint-disable-next-line no-console
                 console.error("[ActionMenu] failed to position menu, falling back to center:", err);
                 const { width: vw, height: vh, offsetLeft: vx, offsetTop: vy } = getViewport();
                 const menuWidth = Math.min(width, Math.max(1, vw - VIEWPORT_PAD * 2));

@@ -6,6 +6,7 @@ import MessageInput from "./MessageInput";
 import ChatOptionsMenu from "./ChatOptionsMenu";
 import ContactProfilePopup from "./ContactProfilePopup";
 import Toast from "./Toast";
+import ConfirmModal from "./ConfirmModal";
 import ChatSearchBar from "./ChatSearchBar";
 import { useChat } from "../context/ChatContext";
 
@@ -48,11 +49,12 @@ export default function ChatWindow({ contact, onBack }) {
     const {
         messagesByChat,
         sendMessage,
+        editMessage,
         typingChatId,
         clearChat,
         toggleBlock,
         toggleMute,
-        deleteChat,
+        unfriend,
     } = useChat();
 
     const messages = messagesByChat[contact.id] || [];
@@ -64,6 +66,9 @@ export default function ChatWindow({ contact, onBack }) {
     const [searchQuery, setSearchQuery] = useState("");
     const [searchIndex, setSearchIndex] = useState(0);
     const [searchCount, setSearchCount] = useState(0);
+    const [replyTo, setReplyTo] = useState(null);
+    const [editingMessage, setEditingMessage] = useState(null);
+    const [confirmAction, setConfirmAction] = useState(null);
 
     useEffect(() => {
         if (!toastMsg) return;
@@ -104,45 +109,20 @@ export default function ChatWindow({ contact, onBack }) {
             className="relative h-full min-h-0 overflow-hidden"
             style={{ background: "var(--bg)" }}
         >
-            {/* =====================================================
-                MESSAGE LIST
-
-                Full-bleed: fills the ENTIRE ChatWindow (h-full, no
-                flex reservation for header/input anymore). Header and
-                input now float as absolute overlays on top of it, so
-                real message bubbles genuinely scroll underneath them
-                — that's what the fade layers are blending, not empty
-                space. MessageList adds its own top/bottom scroll
-                padding so bubbles rest clear of the header/input at
-                rest, but slide under them (and through the fade) when
-                scrolled.
-
-                Still just overflow-y-auto inside. SCROLLING SAFE.
-            ====================================================== */}
 
             <MessageList
                 chatId={contact.id}
                 messages={messages}
                 isGroup={contact.isGroup}
                 onNotify={setToastMsg}
+                onReply={setReplyTo}
+                onEdit={setEditingMessage}
                 searchQuery={searchQuery}
                 searchIndex={searchIndex}
                 onSearchMatches={handleSearchMatches}
                 searchOpen={searchOpen}
             />
 
-            {/* =====================================================
-                TOP FADE
-
-                Absolutely positioned over the full-bleed MessageList,
-                under the header (z-10 < z-30). Solid theme background
-                right behind the header, fading to fully transparent
-                as it moves down — so messages scrolled up underneath
-                the header genuinely fade into the background instead
-                of being hard-clipped. Theme-aware via
-                rgba(var(--bg-rgb)) (no color-mix(), no blur, works in
-                every WebView).
-            ====================================================== */}
 
             <div
                 className="
@@ -152,34 +132,22 @@ export default function ChatWindow({ contact, onBack }) {
                     right-0
                     top-0
                     z-10
-                    h-28
+                    h-32
+                    sm:h-36
                 "
                 style={{
                     background: `linear-gradient(
                         to bottom,
                         rgba(var(--bg-rgb), 1) 0%,
-                        rgba(var(--bg-rgb), 1) 10%,
-                        rgba(var(--bg-rgb), 0.65) 30%,
+                        rgba(var(--bg-rgb), 1) 45%,
+                        rgba(var(--bg-rgb), 0.65) 60%,
                         rgba(var(--bg-rgb), 0.30) 78%,
                         rgba(var(--bg-rgb), 0) 100%
                     )`,
                 }}
             />
 
-            {/* =====================================================
-                HEADER
 
-                Floats as an absolute overlay (z-30) over the message
-                list instead of reserving its own flex space — this is
-                what lets messages actually scroll "behind" it. Its own
-                background is transparent (see ChatHeader.jsx); only
-                the identity/actions capsules inside it are opaque, so
-                the bar itself shows the fade + messages through the
-                gaps, exactly like the reference "floating header"
-                look.
-            ====================================================== */}
-
-            {/* Chat header */}
             <div className="absolute inset-x-0 top-0 z-30">
                 <ChatHeader
                     contact={contact}
@@ -191,36 +159,20 @@ export default function ChatWindow({ contact, onBack }) {
                     onOpenMenu={(rect) => setMenuAnchor(rect)}
                     onOpenSearch={() => setSearchOpen(true)}
                 />
+
+                {searchOpen && (
+                    <ChatSearchBar
+                        query={searchQuery}
+                        onQueryChange={(value) => { setSearchQuery(value); setSearchIndex(0); }}
+                        matchIndex={searchIndex}
+                        matchCount={searchCount}
+                        onPrev={previousSearch}
+                        onNext={nextSearch}
+                        onClose={closeSearch}
+                    />
+                )}
             </div>
 
-            {/* Conversation search — floating overlay, NOT part of header layout */}
-            {searchOpen && (
-                <div className="absolute inset-x-0 top-[68px] z-40 pointer-events-none">
-                    <div className="pointer-events-auto">
-                        <ChatSearchBar
-                            query={searchQuery}
-                            onQueryChange={(value) => {
-                                setSearchQuery(value);
-                                setSearchIndex(0);
-                            }}
-                            matchIndex={searchIndex}
-                            matchCount={searchCount}
-                            onPrev={previousSearch}
-                            onNext={nextSearch}
-                            onClose={closeSearch}
-                        />
-                    </div>
-                </div>
-            )}
-
-            {/* =====================================================
-                BOTTOM FADE
-
-                Same technique, mirrored: transparent where it meets
-                the scrolling messages, solidifying to the theme
-                background right behind the input. Absolutely
-                positioned (z-10), behind the input (z-20).
-            ====================================================== */}
 
             <div
                 className="
@@ -230,8 +182,8 @@ export default function ChatWindow({ contact, onBack }) {
                     right-0
                     bottom-0
                     z-10
-                    h-26
-                    sm:h-38
+                    h-40
+                    sm:h-44
                 "
                 style={{
                     background: `linear-gradient(
@@ -245,20 +197,22 @@ export default function ChatWindow({ contact, onBack }) {
                 }}
             />
 
-            {/* =====================================================
-                INPUT
-
-                Also floats as an absolute overlay (z-20) instead of
-                reserving flex space, so messages genuinely scroll up
-                behind it too. No background on this wrapper — the
-                fade layer behind it (and MessageInput's own opaque
-                pill) already handle everything, so the input itself
-                stays exactly as designed, unchanged.
-            ====================================================== */}
-
             <div className="absolute inset-x-0 bottom-0 z-20">
                 <MessageInput
-                    onSend={(text) => sendMessage(contact.id, text)}
+                    onSend={(text, reply) => {
+                        sendMessage(contact.id, text, reply);
+                        setReplyTo(null);
+                    }}
+                    editingMessage={editingMessage}
+                    onCancelEdit={() => setEditingMessage(null)}
+                    onEdit={(text) => {
+                        if (editingMessage) {
+                            editMessage(contact.id, editingMessage.id, text);
+                            setEditingMessage(null);
+                        }
+                    }}
+                    replyTo={replyTo}
+                    onCancelReply={() => setReplyTo(null)}
                     disabled={isBlocked}
                     disabledMessage={`You've blocked ${contact.name}`}
                     onNotify={setToastMsg}
@@ -282,9 +236,22 @@ export default function ChatWindow({ contact, onBack }) {
                     onClearChat={clearChat}
                     onToggleMute={toggleMute}
                     onToggleBlock={toggleBlock}
-                    onDeleteChat={deleteChat}
+                    onUnfriend={unfriend}
+                    onRequestConfirm={(config) => setConfirmAction(config)}
                 />
             )}
+
+            <ConfirmModal
+                open={Boolean(confirmAction)}
+                title={confirmAction?.title}
+                message={confirmAction?.message}
+                confirmLabel={confirmAction?.confirmLabel}
+                onClose={() => setConfirmAction(null)}
+                onConfirm={() => {
+                    confirmAction?.action?.();
+                    setConfirmAction(null);
+                }}
+            />
         </div>
     );
 }

@@ -75,7 +75,6 @@ export default function MobileLayout() {
         if (activeChatId !== routeChatId) openChat(routeChatId);
     }, [routeChatId, contacts, activeChatId, openChat]);
 
-    // Browser back from a chat: keep the chat mounted long enough to play the reverse animation.
     useEffect(() => {
         if (page === "chat" || !activeContact || chatClosing) return;
         setChatClosing(true);
@@ -155,13 +154,6 @@ export default function MobileLayout() {
 
     return (
         <div className="relative flex h-full w-full flex-col overflow-hidden" style={{ background: "var(--bg)" }}>
-            {/*
-                Keep the mobile home screen and an opened conversation as
-                separate screens.  The chat must not compete with HomeHeader
-                for z-index: when a conversation is open, the home screen is
-                not rendered at all. This prevents the home header/actions
-                from appearing above the chat header on mobile.
-            */}
             {!activeContact && (
                 <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden" style={{ background: "var(--bg)" }}>
                     <HomeHeader

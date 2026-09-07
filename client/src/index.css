@@ -1,11 +1,5 @@
 @import "tailwindcss";
 
-/* ---------------------------------------------------------------- */
-/* Theme tokens                                                      */
-/* Default = light. [data-theme="dark"] overrides. System preference */
-/* is resolved to one of these two in JS (ThemeContext) so components*/
-/* never have to branch on prefers-color-scheme themselves.          */
-/* ---------------------------------------------------------------- */
 :root {
     --bg: #f6f6f4;
     --bg-rgb: 246, 246, 244;
@@ -103,7 +97,6 @@ button {
     font-family: inherit;
 }
 
-/* Thin themed scrollbars */
 .scroll-thin {
     scrollbar-width: thin;
     scrollbar-color: var(--scrollbar-thumb) transparent;
@@ -123,9 +116,6 @@ button {
     border-radius: 999px;
 }
 
-/* ---------------------------------------------------------------- */
-/* Motion                                                             */
-/* ---------------------------------------------------------------- */
 
 @keyframes bubble-in {
     from {
@@ -254,10 +244,6 @@ button {
     animation: popup-in 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Mirror of .anim-popup-in but growing from the opposite corner (top
-   right instead of bottom left) — used for popups anchored near a
-   top-right trigger, like the "new group" button in the list header,
-   so the expansion direction matches where it visually opened from. */
 @keyframes popup-in-tr {
     from {
         opacity: 0;
@@ -322,7 +308,6 @@ button {
     }
 }
 
-/* Modal opens from the trigger and expands to center */
 @keyframes modal-trigger-in {
     from {
         opacity: 0;
@@ -347,11 +332,6 @@ button {
     }
 }
 
-/*
- * Desktop/tablet:
- * modal is centered, so convert viewport trigger coordinates
- * into coordinates relative to the centered modal.
- */
 .anim-modal-in,
 .anim-modal-out {
     transform-origin:
@@ -398,7 +378,6 @@ button {
         modal-overlay-out 0.3s ease both;
 }
 
-/* Mobile = fullscreen, so trigger coordinates are viewport coordinates */
 @media (max-width: 767px) {
 
     .anim-modal-in,
@@ -418,7 +397,6 @@ button {
     }
 }
 
-/* Mobile navigation motion: chat opens right -> left and closes left -> right. */
 @keyframes chat-slide-in-right {
     from {
         transform: translateX(100%);
@@ -472,7 +450,6 @@ button {
     }
 }
 
-/* Hide all scrollbars globally, keep scrolling enabled */
 * {
     scrollbar-width: none !important;
     -ms-overflow-style: none !important;
@@ -483,9 +460,6 @@ button {
     width: 0 !important;
     height: 0 !important;
 }
-/* Scrollbars are hidden globally above, so when an ActionMenu's content is
-   taller than its available space, fade the bottom edge to signal that it
-   scrolls rather than looking like it was cut off. */
 .action-menu-scrollable {
     mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%);
     -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%);
