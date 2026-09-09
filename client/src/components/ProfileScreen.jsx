@@ -102,8 +102,9 @@ export default function ProfileScreen() {
                     </button>
                 </div>
                 <p className="text-[13px]" style={{ color: "var(--text-muted)" }}>
-                    {currentUser.role}
+                    {currentUser.username}
                 </p>
+                <Pencil size={13} />
             </div>
 
             <div>
