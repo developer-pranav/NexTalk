@@ -106,7 +106,6 @@ export default function ProfileScreen() {
                 </p>
             </div>
 
-            {/* Bio (replaces the "My Status" pills from the reference) */}
             <div>
                 <SectionLabel>My Bio</SectionLabel>
                 <div className="rounded-2xl px-4 py-3.5" style={{ background: "var(--surface)", boxShadow: "var(--shadow-sm)" }}>
@@ -117,7 +116,7 @@ export default function ProfileScreen() {
             </div>
 
             {/* Dashboard */}
-            <div>
+            {/* <div>
                 <SectionLabel>Dashboard</SectionLabel>
                 <div className="flex flex-col gap-2.5">
                     <DashboardRow
@@ -146,13 +145,13 @@ export default function ProfileScreen() {
                         onClick={() => notify("Privacy settings coming soon")}
                     />
                 </div>
-            </div>
+            </div> */}
 
             {/* Settings: appearance */}
             <ThemeSwitch />
 
             {/* Settings: preferences */}
-            <div>
+            {/* <div>
                 <SectionLabel>Preferences</SectionLabel>
                 <div style={{ borderTop: "1px solid var(--border)" }}>
                     <div style={{ borderBottom: "1px solid var(--border)" }}>
@@ -162,19 +161,12 @@ export default function ProfileScreen() {
                         <PreferenceRow icon={ShieldCheck} label="Read receipts" checked={readReceipts} onChange={setReadReceipts} />
                     </div>
                 </div>
-            </div>
+            </div> */}
 
             {/* Account */}
             <div>
                 <SectionLabel>My Account</SectionLabel>
                 <div className="flex flex-col items-start gap-3">
-                    <button
-                        onClick={() => notify("Account switching coming soon")}
-                        className="text-[14px] font-medium"
-                        style={{ color: "var(--accent)" }}
-                    >
-                        Switch to Other Account
-                    </button>
                     <button
                         onClick={() => notify("Signed out (demo only)")}
                         className="text-[14px] font-medium"
@@ -183,6 +175,17 @@ export default function ProfileScreen() {
                         Log Out
                     </button>
                 </div>
+            </div>
+            <div
+                className="mt-6 border-t pt-4 text-center"
+                style={{ borderColor: "var(--border)" }}
+            >
+                <p
+                    className="text-[11px] font-medium tracking-wide"
+                    style={{ color: "var(--text-faint)" }}
+                >
+                    Developed with ❤️ by Pranav
+                </p>
             </div>
 
             <Toast message={toastMsg} />

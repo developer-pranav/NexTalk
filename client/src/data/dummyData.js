@@ -45,6 +45,19 @@ export const contacts = people.map((p) => ({
   initials: initials(p.name),
   color: colorFor(p.id),
 }));
+// People visible in global search. `contacts` are already friends;
+// these additional people are discoverable but not yet connected.
+export const discoverablePeople = [
+  { id: "u8", name: "Aarav Mehta", online: true, role: "Full Stack Developer", about: "Building products and breaking things on weekends." },
+  { id: "u9", name: "Ananya Singh", online: false, lastSeen: "30m ago", role: "Product Manager", about: "Product, people and good ideas." },
+  { id: "u10", name: "Kunal Verma", online: true, role: "Software Engineer", about: "Backend systems and distributed things." },
+  { id: "u11", name: "Sana Khan", online: false, lastSeen: "2h ago", role: "UI Designer", about: "Making interfaces feel simple." },
+].map((p) => ({
+  ...p,
+  initials: initials(p.name),
+  color: colorFor(p.id),
+}));
+
 
 // id -> ordered message list (oldest first)
 export const conversations = {

@@ -7,7 +7,7 @@ export default function Toggle({ checked, onChange }) {
             aria-pressed={checked}
         >
             <span
-                className="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
+                className="absolute top-0.5 left-0 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200"
                 style={{ transform: checked ? "translateX(18px)" : "translateX(2px)" }}
             />
         </button>
