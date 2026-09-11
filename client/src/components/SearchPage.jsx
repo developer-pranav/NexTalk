@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
     ArrowLeft,
     Search,
@@ -9,7 +9,14 @@ import {
 } from "lucide-react";
 import Avatar from "./Avatar";
 import { useChat } from "../context/ChatContext";
-import { discoverablePeople } from "../data/dummyData";
+import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
+import { searchUsers } from "../api/users.js";
+import {
+    sendFriendRequest,
+    getMyConnections,
+    cancelFriendRequest,
+} from "../api/friends.js";
 
 
 function PersonPreview({
@@ -18,7 +25,9 @@ function PersonPreview({
     onClose,
     onOpenChat,
     onAddFriend,
+    onCancelRequest,
     requestSent,
+    requestId,
 }) {
     return (
         <div className="fixed inset-0 z-[100]">
@@ -116,13 +125,6 @@ function PersonPreview({
                             border: "1px solid var(--border)",
                         }}
                     >
-                        {/* Decorative circle */}
-                        <div
-                            className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full opacity-40"
-                            style={{
-                                background: "var(--accent-soft)",
-                            }}
-                        />
 
                         <div className="relative flex flex-col items-center">
                             <Avatar
@@ -130,8 +132,8 @@ function PersonPreview({
                                 initials={person.initials}
                                 color={person.color}
                                 size="2xl"
-                                showPresence
-                                online={person.online}
+                                showPresence={isFriend}
+                                online={isFriend && person.online}
                             />
 
                             <p
@@ -145,39 +147,8 @@ function PersonPreview({
                                 className="mt-1 text-[13px]"
                                 style={{ color: "var(--text-muted)" }}
                             >
-                                {person.role ||
-                                    (person.online
-                                        ? "Active now"
-                                        : "Offline")}
+                                @{person.username}
                             </p>
-
-                            <div
-                                className="mt-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1"
-                                style={{
-                                    background: "var(--surface)",
-                                    border: "1px solid var(--border)",
-                                }}
-                            >
-                                <span
-                                    className="h-1.5 w-1.5 rounded-full"
-                                    style={{
-                                        background: person.online
-                                            ? "#35C77A"
-                                            : "var(--text-faint)",
-                                    }}
-                                />
-
-                                <span
-                                    className="text-[11px]"
-                                    style={{
-                                        color: "var(--text-muted)",
-                                    }}
-                                >
-                                    {person.online
-                                        ? "Active now"
-                                        : "Offline"}
-                                </span>
-                            </div>
                         </div>
                     </div>
 
@@ -237,7 +208,11 @@ function PersonPreview({
                             <button
                                 type="button"
                                 disabled={requestSent}
-                                onClick={() => onAddFriend(person.id)}
+                                onClick={() =>
+                                    requestSent
+                                        ? onCancelRequest(requestId)
+                                        : onAddFriend(person.id)
+                                }
                                 className="
                                     mt-3
                                     flex
@@ -267,7 +242,7 @@ function PersonPreview({
                                 {requestSent ? (
                                     <>
                                         <UserCheck size={16} />
-                                        Friend request sent
+                                        Cancel request
                                     </>
                                 ) : (
                                     <>
@@ -317,47 +292,201 @@ function PersonPreview({
 
 export default function SearchPage({ onBack, onOpenChat }) {
     const { contacts } = useChat();
+    const { user } = useAuth();
+    const { showToast } = useToast();
 
     const [query, setQuery] = useState("");
+    const [results, setResults] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [searchError, setSearchError] = useState("");
     const [selectedPerson, setSelectedPerson] = useState(null);
-    const [sentRequests, setSentRequests] = useState(() => new Set());
+    const [connections, setConnections] = useState([]);
+    const [actionId, setActionId] = useState(null);
 
-    const results = useMemo(() => {
-        const q = query.trim().toLowerCase();
-
-        if (!q) return [];
-
-        const allPeople = [...contacts, ...discoverablePeople];
-        const seen = new Set();
-
-        return allPeople.filter((person) => {
-            if (seen.has(person.id)) return false;
-
-            seen.add(person.id);
-
-            return `${person.name} ${person.role || ""} ${
-                person.about || ""
-            }`
-                .toLowerCase()
-                .includes(q);
-        });
-    }, [contacts, query]);
-
-    const friendIds = useMemo(
-        () => new Set(contacts.map((contact) => contact.id)),
-        [contacts]
-    );
-
-    const handleAddFriend = (id) => {
-        setSentRequests((previous) => {
-            const next = new Set(previous);
-            next.add(id);
-            return next;
-        });
+    const loadConnections = async () => {
+        try {
+            const response = await getMyConnections();
+            setConnections(response?.data || []);
+        } catch (error) {
+            console.error("Failed to load connections:", error);
+        }
     };
 
+    useEffect(() => {
+        loadConnections();
+    }, []);
+
+    useEffect(() => {
+        const trimmedQuery = query.trim();
+
+        if (trimmedQuery.length < 2) {
+            setResults([]);
+            setLoading(false);
+            setSearchError("");
+            return;
+        }
+
+        let cancelled = false;
+
+        const timer = setTimeout(async () => {
+            try {
+                setLoading(true);
+                setSearchError("");
+
+                const response = await searchUsers(trimmedQuery);
+                if (cancelled) return;
+
+                const users = response?.data || [];
+                setResults(
+                    users
+                        .filter((item) => item._id !== user?._id)
+                        .map((item) => ({
+                            id: item._id,
+                            name: item.fullname,
+                            username: item.username,
+                            avatar: item.avatar,
+                            initials: item.fullname
+                                ?.split(" ")
+                                .map((part) => part[0])
+                                .join("")
+                                .slice(0, 2)
+                                .toUpperCase(),
+                            color: "var(--accent)",
+                            online: false,
+                            isGroup: false,
+                        }))
+                );
+            } catch (error) {
+                if (cancelled) return;
+                console.error("User search failed:", error);
+                setResults([]);
+                setSearchError(
+                    error?.response?.data?.message ||
+                        "Unable to search users right now."
+                );
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        }, 500);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(timer);
+        };
+    }, [query, user?._id]);
+
+    const connectionMap = useMemo(() => {
+        const map = new Map();
+
+        connections.forEach((connection) => {
+            const senderId = connection.sender?._id || connection.sender;
+            const receiverId = connection.receiver?._id || connection.receiver;
+            const otherId = String(senderId) === String(user?._id)
+                ? receiverId
+                : senderId;
+
+            map.set(String(otherId), connection);
+        });
+
+        return map;
+    }, [connections, user?._id]);
+
+    const getConnectionState = (personId) => {
+        const connection = connectionMap.get(String(personId));
+
+        if (!connection) return { status: "none", requestId: null };
+
+        if (connection.status === "friend") {
+            return { status: "friend", requestId: connection._id };
+        }
+
+        if (connection.status === "pending") {
+            const senderId = connection.sender?._id || connection.sender;
+            const isSentByMe = String(senderId) === String(user?._id);
+
+            return {
+                status: isSentByMe ? "pending_sent" : "pending_received",
+                requestId: connection._id,
+            };
+        }
+
+        return { status: connection.status, requestId: connection._id };
+    };
+
+    const handleAddFriend = async (id) => {
+        try {
+            setActionId(id);
+            const response = await sendFriendRequest(id);
+            const newConnection = response?.data;
+
+            if (newConnection) {
+                setConnections((previous) => [
+                    ...previous.filter((item) => item._id !== newConnection._id),
+                    newConnection,
+                ]);
+            } else {
+                await loadConnections();
+            }
+
+            showToast("Your friend request has been sent.", {
+                title: "Request sent",
+                type: "success",
+            });
+        } catch (error) {
+            console.error("Friend request failed:", error);
+            showToast(
+                error?.response?.data?.message ||
+                    "We couldn't send the friend request. Please try again.",
+                { title: "Request failed", type: "error" }
+            );
+        } finally {
+            setActionId(null);
+        }
+    };
+
+    const handleCancelRequest = async (requestId, personId) => {
+        if (!requestId) return;
+
+        try {
+            setActionId(personId);
+            await cancelFriendRequest(requestId);
+            setConnections((previous) =>
+                previous.filter((item) => item._id !== requestId)
+            );
+
+            showToast("The friend request has been cancelled.", {
+                title: "Request cancelled",
+                type: "info",
+            });
+        } catch (error) {
+            console.error("Cancel request failed:", error);
+            showToast(
+                error?.response?.data?.message ||
+                    "We couldn't cancel the request. Please try again.",
+                { title: "Couldn't cancel request", type: "error" }
+            );
+        } finally {
+            setActionId(null);
+        }
+    };
+
+    const friendIds = useMemo(
+        () => new Set(
+            connections
+                .filter((connection) => connection.status === "friend")
+                .map((connection) => {
+                    const senderId = connection.sender?._id || connection.sender;
+                    const receiverId = connection.receiver?._id || connection.receiver;
+                    return String(senderId) === String(user?._id)
+                        ? String(receiverId)
+                        : String(senderId);
+                })
+        ),
+        [connections, user?._id]
+    );
+
     const openPerson = (person) => {
-        if (friendIds.has(person.id)) {
+        if (friendIds.has(String(person.id))) {
             onOpenChat?.(person.id);
             return;
         }
@@ -453,7 +582,19 @@ export default function SearchPage({ onBack, onOpenChat }) {
 
             {/* Results */}
             <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 pb-32">
-                {!query.trim() ? (
+                {loading ? (
+                    <div className="pt-12 text-center text-[13px]" style={{ color: "var(--text-muted)" }}>
+                        Searching...
+                    </div>
+                ) : searchError ? (
+                    <div className="pt-12 text-center text-[13px]" style={{ color: "var(--text-muted)" }}>
+                        {searchError}
+                    </div>
+                ) : query.trim().length > 0 && query.trim().length < 2 ? (
+                    <div className="pt-12 text-center text-[13px]" style={{ color: "var(--text-muted)" }}>
+                        Type at least 2 characters to search.
+                    </div>
+                ) : !query.trim() ? (
                     <div className="flex h-full flex-col items-center justify-center px-8 text-center">
                         <div
                             className="grid h-14 w-14 place-items-center rounded-full"
@@ -489,8 +630,10 @@ export default function SearchPage({ onBack, onOpenChat }) {
                 ) : (
                     <div className="flex flex-col gap-2">
                         {results.map((person) => {
-                            const isFriend = friendIds.has(person.id);
-                            const requestSent = sentRequests.has(person.id);
+                            const connectionState = getConnectionState(person.id);
+                            const isFriend = connectionState.status === "friend";
+                            const requestSent = connectionState.status === "pending_sent";
+                            const requestReceived = connectionState.status === "pending_received";
 
                             return (
                                 <div
@@ -524,8 +667,8 @@ export default function SearchPage({ onBack, onOpenChat }) {
                                             initials={person.initials}
                                             color={person.color}
                                             size="md"
-                                            showPresence={!person.isGroup}
-                                            online={person.online}
+                                            showPresence={isFriend}
+                                            online={isFriend && person.online}
                                         />
 
                                         <span className="min-w-0 flex-1">
@@ -544,77 +687,48 @@ export default function SearchPage({ onBack, onOpenChat }) {
                                                     color: "var(--text-muted)",
                                                 }}
                                             >
-                                                {person.role ||
-                                                    (person.isGroup
-                                                        ? `${person.members} members`
-                                                        : person.online
-                                                            ? "Active now"
-                                                            : "Offline")}
+                                                @{person.username}
                                             </span>
                                         </span>
                                     </button>
 
                                     {isFriend ? (
                                         <span
-                                            className="
-                                                flex
-                                                shrink-0
-                                                items-center
-                                                gap-1.5
-                                                rounded-full
-                                                px-2.5
-                                                py-1.5
-                                                text-[11px]
-                                                font-medium
-                                            "
-                                            style={{
-                                                background:
-                                                    "var(--accent-soft)",
-                                                color: "var(--accent)",
-                                            }}
+                                            className="flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11px] font-medium"
+                                            style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
                                         >
                                             <UserCheck size={13} />
                                             Friend
                                         </span>
+                                    ) : requestSent ? (
+                                        <button
+                                            type="button"
+                                            disabled={actionId === person.id}
+                                            onClick={() => handleCancelRequest(connectionState.requestId, person.id)}
+                                            className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold disabled:opacity-50"
+                                            style={{ background: "var(--surface-hover)", color: "var(--text-muted)" }}
+                                        >
+                                            <X size={13} />
+                                            Cancel
+                                        </button>
+                                    ) : requestReceived ? (
+                                        <span
+                                            className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold"
+                                            style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
+                                        >
+                                            <UserCheck size={13} />
+                                            Pending
+                                        </span>
                                     ) : (
                                         <button
                                             type="button"
-                                            onClick={() =>
-                                                setSelectedPerson(person)
-                                            }
-                                            className="
-                                                flex
-                                                shrink-0
-                                                items-center
-                                                gap-1.5
-                                                rounded-full
-                                                px-3
-                                                py-1.5
-                                                text-[11px]
-                                                font-semibold
-                                                transition-transform
-                                                active:scale-95
-                                            "
-                                            style={{
-                                                background: requestSent
-                                                    ? "var(--surface-hover)"
-                                                    : "var(--accent-soft)",
-                                                color: requestSent
-                                                    ? "var(--text-muted)"
-                                                    : "var(--accent)",
-                                            }}
+                                            disabled={actionId === person.id}
+                                            onClick={() => handleAddFriend(person.id)}
+                                            className="flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold disabled:opacity-50"
+                                            style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
                                         >
-                                            {requestSent ? (
-                                                <>
-                                                    <UserCheck size={13} />
-                                                    Sent
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <UserPlus size={13} />
-                                                    Add
-                                                </>
-                                            )}
+                                            <UserPlus size={13} />
+                                            Add
                                         </button>
                                     )}
                                 </div>
@@ -628,14 +742,19 @@ export default function SearchPage({ onBack, onOpenChat }) {
             {selectedPerson && (
                 <PersonPreview
                     person={selectedPerson}
-                    isFriend={friendIds.has(selectedPerson.id)}
-                    requestSent={sentRequests.has(selectedPerson.id)}
+                    isFriend={friendIds.has(String(selectedPerson.id))}
+                    requestSent={getConnectionState(selectedPerson.id).status === "pending_sent"}
+                    requestId={getConnectionState(selectedPerson.id).requestId}
                     onClose={() => setSelectedPerson(null)}
                     onOpenChat={(id) => {
                         setSelectedPerson(null);
                         onOpenChat?.(id);
                     }}
                     onAddFriend={handleAddFriend}
+                    onCancelRequest={(requestId) => {
+                        handleCancelRequest(requestId, selectedPerson.id);
+                        setSelectedPerson(null);
+                    }}
                 />
             )}
         </div>

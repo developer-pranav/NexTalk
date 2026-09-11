@@ -55,9 +55,13 @@ export default function ChatWindow({ contact, onBack }) {
         toggleBlock,
         toggleMute,
         unfriend,
+        messagesLoading,
+        messagesError,
     } = useChat();
 
     const messages = messagesByChat[contact.id] || [];
+    const isLoadingMessages = Boolean(messagesLoading[contact.id]) && messages.length === 0;
+    const messageLoadError = messagesError[contact.id];
 
     const [toastMsg, setToastMsg] = useState("");
     const [contactProfileOpen, setContactProfileOpen] = useState(false);
@@ -110,18 +114,32 @@ export default function ChatWindow({ contact, onBack }) {
             style={{ background: "var(--bg)" }}
         >
 
-            <MessageList
-                chatId={contact.id}
-                messages={messages}
-                isGroup={contact.isGroup}
-                onNotify={setToastMsg}
-                onReply={setReplyTo}
-                onEdit={setEditingMessage}
-                searchQuery={searchQuery}
-                searchIndex={searchIndex}
-                onSearchMatches={handleSearchMatches}
-                searchOpen={searchOpen}
-            />
+            {isLoadingMessages ? (
+                <div className="flex h-full items-center justify-center">
+                    <p className="text-[13px]" style={{ color: "var(--text-muted)" }}>
+                        Loading messages…
+                    </p>
+                </div>
+            ) : messageLoadError ? (
+                <div className="flex h-full items-center justify-center">
+                    <p className="text-[13px]" style={{ color: "var(--text-muted)" }}>
+                        {messageLoadError}
+                    </p>
+                </div>
+            ) : (
+                <MessageList
+                    chatId={contact.id}
+                    messages={messages}
+                    isGroup={contact.isGroup}
+                    onNotify={setToastMsg}
+                    onReply={setReplyTo}
+                    onEdit={setEditingMessage}
+                    searchQuery={searchQuery}
+                    searchIndex={searchIndex}
+                    onSearchMatches={handleSearchMatches}
+                    searchOpen={searchOpen}
+                />
+            )}
 
 
             <div

@@ -16,8 +16,9 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
         origin: "http://localhost:5173",
-        credentials: true
-    }
+        methods: ["GET", "POST"],
+        credentials: true,
+    },
 });
 
 initializeSocket(io);
@@ -25,8 +26,9 @@ initializeSocket(io);
 connectDB()
     .then(() => {
         httpServer.listen(port, () => {
-            console.log(
-                `Server is running on port ${port}`
-            );
+            console.log(`Server is running on port ${port}`);
         });
+    })
+    .catch((error) => {
+        console.error("Database connection failed:", error);
     });

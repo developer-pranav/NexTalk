@@ -1,8 +1,8 @@
 import api from "./client.js";
 
 
-export const getMessages = async (conversationId) => {
-    const response = await api.get(`/messages/${conversationId}`);
+export const getMessages = async (conversationId, params = {}) => {
+    const response = await api.get(`/messages/${conversationId}`, { params });
     return response.data;
 };
 

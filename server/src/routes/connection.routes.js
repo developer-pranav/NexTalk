@@ -2,6 +2,8 @@ import { Router } from "express";
 import {
     sendFriendRequest,
     getFriendRequests,
+    getMyConnections,
+    cancelFriendRequest,
     acceptFriendRequest,
     rejectFriendRequest,
     blockUser,
@@ -21,6 +23,18 @@ router.get(
     "/requests",
     verifyJWT,
     getFriendRequests
+);
+
+router.get(
+    "/",
+    verifyJWT,
+    getMyConnections
+);
+
+router.delete(
+    "/request/:requestId/cancel",
+    verifyJWT,
+    cancelFriendRequest
 );
 
 router.patch(

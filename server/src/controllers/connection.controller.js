@@ -91,6 +91,51 @@ const sendFriendRequest = asyncHandler(async (req, res) => {
 });
 
 
+
+
+const getMyConnections = asyncHandler(async (req, res) => {
+    const connections = await Connection.find({
+        $or: [
+            { sender: req.user._id },
+            { receiver: req.user._id }
+        ]
+    }).populate("sender", "username fullname avatar")
+      .populate("receiver", "username fullname avatar");
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            connections,
+            "Connections fetched successfully"
+        )
+    );
+});
+
+
+const cancelFriendRequest = asyncHandler(async (req, res) => {
+    const { requestId } = req.params;
+
+    const request = await Connection.findById(requestId);
+
+    if (!request) {
+        throw new ApiError(404, "Friend request not found");
+    }
+
+    if (request.sender.toString() !== req.user._id.toString()) {
+        throw new ApiError(403, "You can only cancel requests you sent");
+    }
+
+    if (request.status !== "pending") {
+        throw new ApiError(400, "Friend request is no longer pending");
+    }
+
+    await Connection.findByIdAndDelete(requestId);
+
+    return res.status(200).json(
+        new ApiResponse(200, {}, "Friend request cancelled")
+    );
+});
+
 const getFriendRequests = asyncHandler(async (req, res) => {
 
     const requests = await Connection.find({
@@ -309,6 +354,8 @@ const unblockUser = asyncHandler(async (req, res) => {
 export {
     sendFriendRequest,
     getFriendRequests,
+    getMyConnections,
+    cancelFriendRequest,
     acceptFriendRequest,
     rejectFriendRequest,
     blockUser,

@@ -3,6 +3,7 @@ import { Bell, CircleUserRound, Lock, LogOut } from "lucide-react";
 import Avatar from "./Avatar";
 import ThemeSwitch from "./ThemeSwitch";
 import { currentUser } from "../data/dummyData";
+import { useAuth } from "../context/AuthContext";
 
 function Toggle({ checked, onChange }) {
     return (
@@ -35,6 +36,7 @@ function Row({ icon: Icon, label, right }) {
 }
 
 export default function SettingsBody() {
+    const { logout } = useAuth();
     const [notifications, setNotifications] = useState(true);
     const [readReceipts, setReadReceipts] = useState(true);
 
@@ -72,6 +74,7 @@ export default function SettingsBody() {
             </div>
 
             <button
+                onClick={async () => { try { await logout(); } catch {} }}
                 className="flex items-center justify-center gap-2 rounded-xl py-2.5 text-[13.5px] font-medium transition-colors"
                 style={{ background: "var(--danger-soft)", color: "var(--danger)" }}
             >

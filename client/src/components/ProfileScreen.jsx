@@ -5,6 +5,7 @@ import ThemeSwitch from "./ThemeSwitch";
 import Toggle from "./Toggle";
 import Toast from "./Toast";
 import { currentUser, profileDashboard } from "../data/dummyData";
+import { useAuth } from "../context/AuthContext";
 
 function SectionLabel({ children }) {
     return (
@@ -57,6 +58,7 @@ function PreferenceRow({ icon: Icon, label, checked, onChange }) {
 }
 
 export default function ProfileScreen() {
+  const { logout } = useAuth();
     const [notifications, setNotifications] = useState(true);
     const [readReceipts, setReadReceipts] = useState(true);
     const [toastMsg, setToastMsg] = useState("");
@@ -169,7 +171,9 @@ export default function ProfileScreen() {
                 <SectionLabel>My Account</SectionLabel>
                 <div className="flex flex-col items-start gap-3">
                     <button
-                        onClick={() => notify("Signed out (demo only)")}
+                        onClick={async () => {
+              try { await logout(); } catch { notify("Unable to sign out"); }
+            }}
                         className="text-[14px] font-medium"
                         style={{ color: "var(--danger)" }}
                     >

@@ -1,12 +1,11 @@
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
-    contacts as initialContacts,
-    conversations as initialConversations,
-    olderMessagesByChat,
-    unreadCounts as initialUnread,
     pickAutoReply,
     AVATAR_PALETTE,
 } from "../data/dummyData";
+import { getMyConversations } from "../api/conversations";
+import { getMessages } from "../api/messages";
+import { useAuth } from "./AuthContext";
 
 const ChatContext = createContext(null);
 
@@ -14,32 +13,237 @@ let idCounter = 1000;
 const nextId = () => `local-${idCounter++}`;
 let groupIdCounter = 1;
 
+const MESSAGES_PAGE_SIZE = 30;
+
 function groupInitials(name) {
-    return name
+    return (name || "")
         .split(" ")
+        .filter(Boolean)
         .map((p) => p[0])
         .slice(0, 2)
         .join("")
         .toUpperCase();
 }
 
+function colorFor(seed) {
+    const str = String(seed || "");
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+}
+
 function formatNow() {
     return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+function formatTime(iso) {
+    if (!iso) return "";
+    return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+// Maps a conversation returned by GET /conversations (or /conversations/:id)
+// into the "contact" shape the existing UI components already know how to render.
+function adaptConversation(conversation, myUserId) {
+    const isGroup = conversation.type === "group";
+
+    if (isGroup) {
+        const name = conversation.groupName || "Group";
+        return {
+            id: conversation._id,
+            name,
+            isGroup: true,
+            online: false,
+            members: (conversation.members || []).length,
+            memberIds: (conversation.members || []).map((m) => m._id || m),
+            initials: groupInitials(name),
+            color: colorFor(conversation._id),
+            blocked: false,
+            muted: false,
+        };
+    }
+
+    const other = (conversation.members || []).find(
+        (m) => (m._id || m) !== myUserId
+    ) || {};
+    const name = other.fullname || other.username || "Unknown";
+
+    return {
+        id: conversation._id,
+        name,
+        isGroup: false,
+        online: Boolean(other.isOnline),
+        lastSeen: other.lastOnline ? formatTime(other.lastOnline) : undefined,
+        otherUserId: other._id,
+        initials: groupInitials(name),
+        color: colorFor(other._id || conversation._id),
+        blocked: false,
+        muted: false,
+    };
+}
+
+// Maps a message returned by GET /messages/:conversationId into the shape
+// the existing MessageList / MessageBubble components already render.
+function adaptMessage(message, myUserId) {
+    const senderId = message.sender?._id || message.sender;
+    const isMe = senderId === myUserId;
+
+    let text = message.content || "";
+    if (message.deleted) {
+        text = "This message was deleted";
+    } else if (message.type && message.type !== "text" && message.media) {
+        const label =
+            message.type === "image" ? "Photo" :
+            message.type === "video" ? "Video" :
+            message.type === "audio" ? "Audio" :
+            message.media.fileName || "File";
+        text = `📎 ${label}`;
+    }
+
+    const adapted = {
+        id: message._id,
+        from: isMe ? "me" : "them",
+        text,
+        time: formatTime(message.createdAt),
+        deleted: Boolean(message.deleted),
+        edited: Boolean(message.isEdited),
+    };
+
+    if (!isMe && message.sender?.fullname) {
+        adapted.author = message.sender.fullname;
+    }
+
+    if (isMe) {
+        const seenBy = message.seenBy || [];
+        const seenByOthers = seenBy.some((id) => (id?._id || id) !== myUserId);
+        adapted.status = seenByOthers ? "read" : "delivered";
+    }
+
+    return adapted;
+}
+
 export function ChatProvider({ children }) {
-    const [contacts, setContacts] = useState(initialContacts);
+    const { user, isAuthenticated } = useAuth();
+
+    const [contacts, setContacts] = useState([]);
     const [activeChatId, setActiveChatId] = useState(null);
-    const [messagesByChat, setMessagesByChat] = useState(initialConversations);
-    const [unreadCounts, setUnreadCounts] = useState(initialUnread);
+    const [messagesByChat, setMessagesByChat] = useState({});
+    const [unreadCounts, setUnreadCounts] = useState({});
     const [typingChatId, setTypingChatId] = useState(null);
-    const [loadedOlder, setLoadedOlder] = useState({});
     const [refreshingChatId, setRefreshingChatId] = useState(null);
+
+    const [currentUserId, setCurrentUserId] = useState(null);
+    const currentUserIdRef = useRef(null);
+
+    const [contactsLoading, setContactsLoading] = useState(true);
+    const [contactsError, setContactsError] = useState(null);
+
+    const [messagesLoading, setMessagesLoading] = useState({});
+    const [messagesError, setMessagesError] = useState({});
+    const [messagePagination, setMessagePagination] = useState({});
+    const loadedChatsRef = useRef(new Set());
+
+    useEffect(() => {
+        currentUserIdRef.current = currentUserId;
+    }, [currentUserId]);
+
+    // Load real conversations only after authentication is restored/created.
+    useEffect(() => {
+        let cancelled = false;
+
+        if (!isAuthenticated || !user?._id) {
+            setCurrentUserId(null);
+            setContacts([]);
+            setMessagesByChat({});
+            setUnreadCounts({});
+            setActiveChatId(null);
+            setContactsLoading(false);
+            setContactsError(null);
+            loadedChatsRef.current.clear();
+            return () => {
+                cancelled = true;
+            };
+        }
+
+        async function loadConversations() {
+            setContactsLoading(true);
+            setContactsError(null);
+            setCurrentUserId(user._id);
+
+            try {
+                const conversationsResponse = await getMyConversations();
+                if (cancelled) return;
+
+                const adapted = (conversationsResponse?.data || []).map((conversation) =>
+                    adaptConversation(conversation, user._id)
+                );
+                setContacts(adapted);
+            } catch (error) {
+                if (!cancelled) {
+                    setContactsError(
+                        error?.response?.data?.message || "Failed to load conversations"
+                    );
+                }
+            } finally {
+                if (!cancelled) setContactsLoading(false);
+            }
+        }
+
+        loadConversations();
+        return () => {
+            cancelled = true;
+        };
+    }, [isAuthenticated, user?._id]);
+
+    // Task 2: replace dummy messages with the real messages API (paginated fetch).
+    const fetchMessages = useCallback((chatId, { page = 1, append = false } = {}) => {
+        setMessagesLoading((prev) => ({ ...prev, [chatId]: true }));
+        setMessagesError((prev) => ({ ...prev, [chatId]: null }));
+
+        return getMessages(chatId, { page, limit: MESSAGES_PAGE_SIZE })
+            .then((response) => {
+                const { messages: rawMessages, pagination } = response?.data || {};
+                // Server returns newest-first for pagination; UI expects oldest-first.
+                const adapted = (rawMessages || [])
+                    .map((m) => adaptMessage(m, currentUserIdRef.current))
+                    .reverse();
+
+                setMessagesByChat((prev) => ({
+                    ...prev,
+                    [chatId]: append ? [...adapted, ...(prev[chatId] || [])] : adapted,
+                }));
+
+                setMessagePagination((prev) => ({
+                    ...prev,
+                    [chatId]: {
+                        page: pagination?.page || page,
+                        hasMore: Boolean(pagination?.hasMore),
+                    },
+                }));
+            })
+            .catch((error) => {
+                setMessagesError((prev) => ({
+                    ...prev,
+                    [chatId]: error?.response?.data?.message || "Failed to load messages",
+                }));
+            })
+            .finally(() => {
+                setMessagesLoading((prev) => ({ ...prev, [chatId]: false }));
+            });
+    }, []);
 
     const openChat = useCallback((chatId) => {
         setActiveChatId(chatId);
         setUnreadCounts((prev) => ({ ...prev, [chatId]: 0 }));
-    }, []);
+
+        // Local-only groups (created client-side) aren't backed by a real
+        // conversation yet, so there's nothing to fetch for them.
+        if (chatId.startsWith("group-")) return;
+
+        if (!loadedChatsRef.current.has(chatId)) {
+            loadedChatsRef.current.add(chatId);
+            fetchMessages(chatId, { page: 1, append: false });
+        }
+    }, [fetchMessages]);
 
     const closeChat = useCallback(() => setActiveChatId(null), []);
 
@@ -159,20 +363,15 @@ export function ChatProvider({ children }) {
     }, []);
 
     const loadOlderMessages = useCallback((chatId) => {
-        if (loadedOlder[chatId] || refreshingChatId) return;
-        const older = olderMessagesByChat[chatId];
-        if (!older || !older.length) return;
+        if (refreshingChatId) return;
+        const pageInfo = messagePagination[chatId];
+        if (!pageInfo?.hasMore) return;
 
         setRefreshingChatId(chatId);
-        setTimeout(() => {
-            setMessagesByChat((prev) => ({
-                ...prev,
-                [chatId]: [...older, ...(prev[chatId] || [])],
-            }));
-            setLoadedOlder((prev) => ({ ...prev, [chatId]: true }));
+        fetchMessages(chatId, { page: (pageInfo.page || 1) + 1, append: true }).finally(() => {
             setRefreshingChatId(null);
-        }, 700);
-    }, [loadedOlder, refreshingChatId]);
+        });
+    }, [refreshingChatId, messagePagination, fetchMessages]);
 
     const clearChat = useCallback((chatId) => {
         setMessagesByChat((prev) => ({ ...prev, [chatId]: [] }));
@@ -237,7 +436,13 @@ export function ChatProvider({ children }) {
             typingChatId,
             loadOlderMessages,
             refreshingChatId,
-            hasMoreOlder: (chatId) => Boolean(olderMessagesByChat[chatId]) && !loadedOlder[chatId],
+            hasMoreOlder: (chatId) => Boolean(messagePagination[chatId]?.hasMore),
+            // Minimal loading/error state for the real conversations + messages APIs.
+            currentUserId,
+            contactsLoading,
+            contactsError,
+            messagesLoading,
+            messagesError,
         }),
         [
             contacts,
@@ -259,7 +464,12 @@ export function ChatProvider({ children }) {
             typingChatId,
             loadOlderMessages,
             refreshingChatId,
-            loadedOlder,
+            messagePagination,
+            currentUserId,
+            contactsLoading,
+            contactsError,
+            messagesLoading,
+            messagesError,
         ]
     );
 

@@ -15,6 +15,8 @@ export default function ChatListPanel({ activeChatId, onSelect, onNewChat }) {
     clearChat,
     toggleBlock,
     unfriend,
+    contactsLoading,
+    contactsError,
   } = useChat();
   const [query, setQuery] = useState("");
   const [contextMenu, setContextMenu] = useState(null);
@@ -46,9 +48,17 @@ export default function ChatListPanel({ activeChatId, onSelect, onNewChat }) {
 
       <div ref={scrollRef} className="scroll-thin flex-1 overflow-y-auto px-3 pb-3">
         <div ref={contentRef}>
-          {filtered.length === 0 ? (
+          {contactsLoading ? (
             <p className="pt-10 text-center text-[13px]" style={{ color: "var(--text-muted)" }}>
-              No chats match “{query}”
+              Loading chats…
+            </p>
+          ) : contactsError ? (
+            <p className="pt-10 text-center text-[13px]" style={{ color: "var(--text-muted)" }}>
+              {contactsError}
+            </p>
+          ) : filtered.length === 0 ? (
+            <p className="pt-10 text-center text-[13px]" style={{ color: "var(--text-muted)" }}>
+              {query ? `No chats match “${query}”` : "No chats yet"}
             </p>
           ) : (
             <div className="flex flex-col gap-2.5">

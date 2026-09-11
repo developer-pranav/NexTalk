@@ -8,13 +8,15 @@ import Toast from "../components/Toast";
 import SearchPage from "../components/SearchPage";
 import RequestsPage from "../components/RequestsPage";
 import { useChat } from "../context/ChatContext";
+import { navigate, usePathname } from "../router/router";
 
 export default function TabletLayout() {
     const { contacts, activeChatId, openChat, closeChat } = useChat();
     const [profileOpen, setProfileOpen] = useState(false);
     const [newChatOpen, setNewChatOpen] = useState(false);
     const [toastMsg, setToastMsg] = useState("");
-    const [section, setSection] = useState("chats");
+    const pathname = usePathname();
+    const section = pathname === "/search" ? "search" : pathname === "/requests" ? "requests" : "chats";
     const activeContact = contacts.find((c) => c.id === activeChatId);
 
     useEffect(() => {
@@ -25,7 +27,7 @@ export default function TabletLayout() {
 
     return (
         <div className="flex h-full w-full" style={{ background: "var(--bg)" }}>
-            <IconRail active={section} onChangeTab={setSection} onOpenProfile={() => setProfileOpen(true)} />
+            <IconRail active={section} onChangeTab={(key) => navigate(key === "search" ? "/search" : key === "requests" ? "/requests" : "/")} onOpenProfile={() => setProfileOpen(true)} />
 
             <div className="relative min-w-0 flex-1 overflow-hidden">
                 {section === "chats" ? (
@@ -43,7 +45,7 @@ export default function TabletLayout() {
                     </>
                 ) : (
                     <div className="absolute inset-3 overflow-hidden rounded-3xl" style={{ background: "var(--surface)", boxShadow: "var(--shadow-md)", border: "1px solid var(--border)" }}>
-                        {section === "search" ? <SearchPage onOpenChat={(id) => { openChat(id); setSection("chats"); }} /> : <RequestsPage />}
+                        {section === "search" ? <SearchPage onOpenChat={(id) => { openChat(id); navigate("/"); }} /> : <RequestsPage />}
                     </div>
                 )}
             </div>

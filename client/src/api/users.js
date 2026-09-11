@@ -22,8 +22,8 @@ export const getCurrentUser = async () => {
 };
 
 export const searchUsers = async (search) => {
-    const response = await api.get("/users", {
-        params: { search },
+    const response = await api.get("/users/search", {
+        params: { username: search },
     });
     return response.data;
 };
