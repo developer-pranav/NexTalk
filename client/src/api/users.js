@@ -32,3 +32,14 @@ export const getUser = async (username) => {
     const response = await api.get(`/users/${username}`);
     return response.data;
 };
+export const updateProfile = async (data) => {
+    const response = await api.patch("/users/me", data);
+    return response.data;
+};
+
+export const updateAvatar = async (formData) => {
+    const response = await api.patch("/users/me/avatar", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+};

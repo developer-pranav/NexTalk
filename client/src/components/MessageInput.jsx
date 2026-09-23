@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import {
     AudioLines,
     Camera,
-    FileText,
     Image as ImageIcon,
     MapPin,
     Mic,
@@ -16,6 +15,7 @@ import ActionMenu from "./ActionMenu";
 
 export default function MessageInput({
     onSend,
+    onSendMedia,
     disabled,
     disabledMessage,
     onNotify,
@@ -24,11 +24,15 @@ export default function MessageInput({
     editingMessage = null,
     onEdit,
     onCancelEdit,
+    onTyping,
+    onMediaUploading,
 }) {
     const [value, setValue] = useState("");
     const [attachmentOpen, setAttachmentOpen] = useState(false);
     const taRef = useRef(null);
     const plusRef = useRef(null);
+    const fileInputRef = useRef(null);
+    const [fileAccept, setFileAccept] = useState("");
 
     const hasText = value.trim().length > 0;
 
@@ -65,6 +69,7 @@ export default function MessageInput({
     const handleChange = (e) => {
         setValue(e.target.value);
         grow(e.target);
+        onTyping?.(e.target.value);
     };
 
     const submit = () => {
@@ -82,6 +87,25 @@ export default function MessageInput({
         if (taRef.current) {
             taRef.current.style.height = "auto";
             taRef.current.focus();
+        }
+    };
+
+
+    const pickFile = (accept) => {
+        setFileAccept(accept);
+        setAttachmentOpen(false);
+        requestAnimationFrame(() => fileInputRef.current?.click());
+    };
+
+    const handleFileChange = async (e) => {
+        const file = e.target.files?.[0];
+        e.target.value = "";
+        if (!file) return;
+        onMediaUploading?.(true, file);
+        try {
+            await onSendMedia?.(file);
+        } finally {
+            onMediaUploading?.(false, file);
         }
     };
 
@@ -110,7 +134,7 @@ export default function MessageInput({
                 <div
                     className="
             flex
-            max-w-3xl
+            max-w-6xl
             mx-auto
             items-center
             justify-center
@@ -189,8 +213,8 @@ export default function MessageInput({
                     onClick={() => setAttachmentOpen((open) => !open)}
                     className="
             grid
-            h-9
-            w-9
+            h-11
+            w-11
             shrink-0
             place-items-center
             rounded-full
@@ -205,7 +229,7 @@ export default function MessageInput({
                     }}
                     aria-label="Add attachment"
                 >
-                    <Plus size={19} />
+                    <Plus size={23} />
                 </button>
 
                 {attachmentOpen && plusRef.current && (
@@ -215,17 +239,20 @@ export default function MessageInput({
                         width={235}
                         onClose={() => setAttachmentOpen(false)}
                         items={[
-                            { key: "photo", label: "Photo", icon: ImageIcon, onClick: () => onNotify?.("Photo picker coming soon") },
-                            { key: "video", label: "Video", icon: Video, onClick: () => onNotify?.("Video picker coming soon") },
-                            { key: "camera", label: "Camera", icon: Camera, onClick: () => onNotify?.("Camera coming soon") },
-                            { key: "audio", label: "Audio", icon: Music2, onClick: () => onNotify?.("Audio picker coming soon") },
-                            { key: "file", label: "File", icon: FileText, onClick: () => onNotify?.("File picker coming soon") },
-                            { separator: true, key: "divider" },
-                            { key: "location", label: "Location", icon: MapPin, onClick: () => onNotify?.("Location sharing coming soon") },
-                            { key: "contact", label: "Contact", icon: UserRound, onClick: () => onNotify?.("Contact sharing coming soon") },
+                            { key: "photo", label: "Photo", icon: ImageIcon, onClick: () => pickFile("image/*") },
+                            { key: "video", label: "Video", icon: Video, onClick: () => pickFile("video/*") },
+                            { key: "audio", label: "Audio", icon: Music2, onClick: () => pickFile("audio/*") }
                         ]}
                     />
                 )}
+
+                <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept={fileAccept}
+                    onChange={handleFileChange}
+                    className="hidden"
+                />
 
                 {/* Textarea */}
                 <textarea
@@ -240,8 +267,8 @@ export default function MessageInput({
             flex-1
             resize-none
             bg-transparent
-            py-2
-            text-[14.5px]
+            py-3
+            text-[16px]
             leading-snug
             outline-none
             placeholder:text-[var(--text-faint)]
@@ -259,8 +286,8 @@ export default function MessageInput({
                         onClick={submit}
                         className="
               grid
-              h-9
-              w-9
+              h-11
+              w-11
               shrink-0
               place-items-center
               rounded-full
@@ -282,8 +309,8 @@ export default function MessageInput({
                             type="button"
                             className="
                 grid
-                h-9
-                w-9
+                h-10
+                w-10
                 place-items-center
                 rounded-full
                 transition-colors
@@ -300,8 +327,8 @@ export default function MessageInput({
                             type="button"
                             className="
                 grid
-                h-9
-                w-9
+                h-10
+                w-10
                 place-items-center
                 rounded-full
                 transition-all

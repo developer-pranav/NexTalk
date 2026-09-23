@@ -168,7 +168,7 @@ export default function MessageList({ chatId, messages, isGroup, onNotify, onRep
                     )}
                 </div>
 
-                <div className="flex flex-col gap-2.5 max-w-3xl mx-auto">
+                <div className="flex flex-col gap-1 max-w-5xl mx-auto">
                     {messages.map((m, i) => (
                         <div data-message-index={i} data-message-id={m.id} key={`${m.id}-wrap`}>
                         <MessageBubble

@@ -1,6 +1,12 @@
 import Avatar from "./Avatar";
 
 export default function MobileChatCard({ contact, unread, isTyping, lastMessage, onSelect, delay = 0 }) {
+    // Use the persisted Conversation.lastMessage when the chat has not been opened yet.
+    const displayLastMessage = lastMessage || (contact.lastMessage ? {
+        text: contact.lastMessage,
+        time: contact.lastMessageTime,
+        from: contact.lastMessageFromMe ? "me" : "them",
+    } : null);
     return (
         <button
             onClick={() => onSelect(contact.id)}
@@ -19,9 +25,9 @@ export default function MobileChatCard({ contact, unread, isTyping, lastMessage,
                     <p className="truncate text-[14.5px] font-semibold" style={{ color: "var(--text)" }}>
                         {contact.name}
                     </p>
-                    {lastMessage && (
+                    {displayLastMessage && (
                         <span className="shrink-0 text-[11px]" style={{ color: "var(--text-faint)" }}>
-                            {lastMessage.time}
+                            {displayLastMessage.time}
                         </span>
                     )}
                 </div>
@@ -32,8 +38,8 @@ export default function MobileChatCard({ contact, unread, isTyping, lastMessage,
                     >
                         {isTyping
                             ? "typing…"
-                            : lastMessage
-                                ? `${lastMessage.from === "me" ? "You: " : ""}${lastMessage.text}`
+                            : displayLastMessage
+                                ? `${displayLastMessage.from === "me" ? "You: " : ""}${displayLastMessage.text}`
                                 : "No messages yet"}
                     </p>
                     {unread > 0 && (

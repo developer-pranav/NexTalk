@@ -6,6 +6,7 @@ import {
 import { getMyConversations } from "../api/conversations";
 import { getMessages } from "../api/messages";
 import { useAuth } from "./AuthContext";
+import { io } from "socket.io-client";
 
 const ChatContext = createContext(null);
 
@@ -41,6 +42,15 @@ function formatTime(iso) {
     return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
+function mediaLabel(message) {
+    if (!message || message.deleted) return message?.deleted ? "This message was deleted" : "";
+    if (message.type === "image") return "Photo";
+    if (message.type === "video") return "Video";
+    if (message.type === "audio") return "Audio";
+    if (message.type === "file") return message.media?.fileName || "File";
+    return message.content || "";
+}
+
 // Maps a conversation returned by GET /conversations (or /conversations/:id)
 // into the "contact" shape the existing UI components already know how to render.
 function adaptConversation(conversation, myUserId) {
@@ -59,6 +69,12 @@ function adaptConversation(conversation, myUserId) {
             color: colorFor(conversation._id),
             blocked: false,
             muted: false,
+            lastMessage: mediaLabel(conversation.lastMessage),
+            lastMessageId: conversation.lastMessage?._id || null,
+            lastMessageTime: formatTime(conversation.lastMessage?.createdAt),
+            lastMessageCreatedAt: conversation.lastMessage?.createdAt || null,
+            lastMessageFromMe: String(conversation.lastMessage?.sender?._id || conversation.lastMessage?.sender || "") === String(myUserId),
+            unreadCount: Number(conversation.unreadCount || 0),
         };
     }
 
@@ -72,12 +88,15 @@ function adaptConversation(conversation, myUserId) {
         name,
         isGroup: false,
         online: Boolean(other.isOnline),
-        lastSeen: other.lastOnline ? formatTime(other.lastOnline) : undefined,
         otherUserId: other._id,
         initials: groupInitials(name),
         color: colorFor(other._id || conversation._id),
         blocked: false,
         muted: false,
+        lastMessage: mediaLabel(conversation.lastMessage),
+        lastMessageTime: formatTime(conversation.lastMessage?.createdAt),
+        lastMessageFromMe: String(conversation.lastMessage?.sender?._id || conversation.lastMessage?.sender || "") === String(myUserId),
+        unreadCount: Number(conversation.unreadCount || 0),
     };
 }
 
@@ -106,16 +125,33 @@ function adaptMessage(message, myUserId) {
         time: formatTime(message.createdAt),
         deleted: Boolean(message.deleted),
         edited: Boolean(message.isEdited),
+        type: message.type || "text",
+        media: message.media || null,
     };
 
     if (!isMe && message.sender?.fullname) {
         adapted.author = message.sender.fullname;
     }
 
+    const deliveredBy = message.deliveredBy || [];
+    const seenBy = message.seenBy || [];
+    const deliveredByOthers = deliveredBy.filter(
+        (id) => String(id?._id || id) !== String(myUserId)
+    );
+    const seenByOthers = seenBy.filter(
+        (id) => String(id?._id || id) !== String(myUserId)
+    );
+
+    adapted.isGroup = message.conversation?.type === "group";
+    adapted.deliveredCount = deliveredByOthers.length;
+    adapted.seenCount = seenByOthers.length;
+
     if (isMe) {
-        const seenBy = message.seenBy || [];
-        const seenByOthers = seenBy.some((id) => (id?._id || id) !== myUserId);
-        adapted.status = seenByOthers ? "read" : "delivered";
+        adapted.status = seenByOthers.length > 0
+            ? "read"
+            : deliveredByOthers.length > 0
+                ? "delivered"
+                : "sent";
     }
 
     return adapted;
@@ -129,6 +165,8 @@ export function ChatProvider({ children }) {
     const [messagesByChat, setMessagesByChat] = useState({});
     const [unreadCounts, setUnreadCounts] = useState({});
     const [typingChatId, setTypingChatId] = useState(null);
+    const activeChatIdRef = useRef(null);
+    const typingTimeoutRef = useRef(null);
     const [refreshingChatId, setRefreshingChatId] = useState(null);
 
     const [currentUserId, setCurrentUserId] = useState(null);
@@ -141,10 +179,308 @@ export function ChatProvider({ children }) {
     const [messagesError, setMessagesError] = useState({});
     const [messagePagination, setMessagePagination] = useState({});
     const loadedChatsRef = useRef(new Set());
+    const socketRef = useRef(null);
+    const joinedChatRef = useRef(new Set());
+    const onlineUserIdsRef = useRef(new Set());
+    // Messages can arrive over Socket.IO while the initial conversation list
+    // request is still in flight. Keep the latest socket message so a stale
+    // REST response cannot overwrite it with "No messages yet".
+    const latestSocketMessageRef = useRef(new Map());
 
     useEffect(() => {
         currentUserIdRef.current = currentUserId;
     }, [currentUserId]);
+
+    useEffect(() => {
+        activeChatIdRef.current = activeChatId;
+    }, [activeChatId]);
+
+    // Real-time Socket.IO connection. The server authenticates this socket
+    // from the same accessToken cookie used by the REST API.
+    useEffect(() => {
+        if (!isAuthenticated || !user?._id) {
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+                socketRef.current = null;
+            }
+            joinedChatRef.current.clear();
+            return;
+        }
+
+        const socket = io(import.meta.env.VITE_SOCKET_URL || "http://localhost:8000", {
+            withCredentials: true,
+            transports: ["websocket", "polling"],
+        });
+
+        socketRef.current = socket;
+
+        const handleNewMessage = (rawMessage) => {
+            const chatId = String(rawMessage?.conversation?._id || rawMessage?.conversation || "");
+            if (!chatId) return;
+
+            const adapted = adaptMessage(rawMessage, user._id);
+
+            // Explicit delivery acknowledgement: the recipient's browser has
+            // actually received the message, even when that chat is closed.
+            if (adapted.from !== "me" && adapted.id) {
+                socket.emit("markMessageDelivered", {
+                    messageId: adapted.id,
+                    conversationId: chatId,
+                });
+            }
+
+            setMessagesByChat((prev) => {
+                const current = prev[chatId] || [];
+                if (current.some((message) => String(message.id) === String(adapted.id))) {
+                    return prev;
+                }
+                return { ...prev, [chatId]: [...current, adapted] };
+            });
+
+            // Only incoming messages create unread state. Your own message
+            // is echoed back by the private user room and must not increment it.
+            if (adapted.from !== "me" && chatId !== activeChatIdRef.current) {
+                setUnreadCounts((prev) => ({ ...prev, [chatId]: (prev[chatId] || 0) + 1 }));
+            }
+
+            latestSocketMessageRef.current.set(chatId, {
+                text: adapted.text,
+                time: adapted.time,
+                createdAt: rawMessage?.createdAt || null,
+                fromMe: adapted.from === "me",
+            });
+
+            setContacts((prev) =>
+                prev.map((contact) =>
+                    String(contact.id) === chatId
+                        ? {
+                            ...contact,
+                            lastMessage: adapted.text,
+                            lastMessageId: adapted.id,
+                            lastMessageTime: adapted.time,
+                            lastMessageCreatedAt: rawMessage?.createdAt || contact.lastMessageCreatedAt || null,
+                            lastMessageFromMe: adapted.from === "me",
+                        }
+                        : contact
+                )
+            );
+        };
+
+        const handleMessageDeleted = ({ messageId, conversationId, lastMessage }) => {
+            if (!messageId || !conversationId) return;
+
+            setMessagesByChat((prev) => ({
+                ...prev,
+                [conversationId]: (prev[conversationId] || []).map((message) => {
+                    if (String(message.id) === String(messageId)) {
+                        return {
+                            ...message,
+                            deleted: true,
+                            text: "This message was deleted",
+                            replyTo: undefined,
+                            forwarded: false,
+                        };
+                    }
+
+                    if (message.replyTo?.id && String(message.replyTo.id) === String(messageId)) {
+                        return {
+                            ...message,
+                            replyTo: { ...message.replyTo, text: "This message was deleted" },
+                        };
+                    }
+
+                    return message;
+                }),
+            }));
+
+            // Keep the chat-list preview in sync when the deleted message was
+            // the conversation's persisted lastMessage.
+            setContacts((prev) => prev.map((contact) => {
+                if (String(contact.id) !== String(conversationId)) return contact;
+
+                if (!lastMessage) {
+                    return {
+                        ...contact,
+                        lastMessage: "",
+                        lastMessageTime: "",
+                        lastMessageCreatedAt: null,
+                        lastMessageFromMe: false,
+                    };
+                }
+
+                const senderId = lastMessage.sender?._id || lastMessage.sender;
+                return {
+                    ...contact,
+                    lastMessage: lastMessage.content || (lastMessage.deleted ? "This message was deleted" : ""),
+                    lastMessageTime: formatTime(lastMessage.createdAt),
+                    lastMessageCreatedAt: lastMessage.createdAt || null,
+                    lastMessageFromMe: String(senderId || "") === String(user._id),
+                };
+            }));
+
+            latestSocketMessageRef.current.delete(String(conversationId));
+        };
+
+        const handleMessageEdited = ({ messageId, conversationId, content, editedAt, lastMessage }) => {
+            if (!messageId || !conversationId) return;
+
+            setMessagesByChat((prev) => ({
+                ...prev,
+                [conversationId]: (prev[conversationId] || []).map((message) =>
+                    String(message.id) === String(messageId)
+                        ? {
+                            ...message,
+                            text: content ?? message.text,
+                            edited: true,
+                            editedAt: editedAt || Date.now(),
+                        }
+                        : message
+                ),
+            }));
+
+            // If the edited message is the persisted conversation preview,
+            // update the chat list without opening the conversation.
+            if (lastMessage && String(lastMessage._id) === String(messageId)) {
+                setContacts((prev) => prev.map((contact) =>
+                    String(contact.id) === String(conversationId)
+                        ? {
+                            ...contact,
+                            lastMessageId: String(messageId),
+                            lastMessage: lastMessage.content || "",
+                            lastMessageTime: formatTime(lastMessage.createdAt),
+                            lastMessageCreatedAt: lastMessage.createdAt || contact.lastMessageCreatedAt || null,
+                        }
+                        : contact
+                ));
+            }
+        };
+
+        const handleMessageDelivered = ({ conversationId, messageId, messageIds, userIds }) => {
+            if (!conversationId) return;
+            const ids = new Set(
+                [messageId, ...(messageIds || [])].filter(Boolean).map(String)
+            );
+
+            setMessagesByChat((prev) => {
+                const current = prev[conversationId] || [];
+                return {
+                    ...prev,
+                    [conversationId]: current.map((message) =>
+                        message.from === "me" && ids.has(String(message.id))
+                            ? { ...message, status: message.status === "read" ? "read" : "delivered", deliveredCount: Math.max(message.deliveredCount || 0, userIds?.length || 1) }
+                            : message
+                    ),
+                };
+            });
+        };
+
+        const handleMessagesSeen = ({ conversationId, userId, messageIds, seenCounts }) => {
+            if (!conversationId || String(userId) === String(user._id)) return;
+
+            const ids = new Set((messageIds || []).map(String));
+
+            setMessagesByChat((prev) => {
+                const current = prev[conversationId] || [];
+                return {
+                    ...prev,
+                    [conversationId]: current.map((message) => {
+                        if (message.from !== "me" || !ids.has(String(message.id))) return message;
+                        return {
+                            ...message,
+                            status: "read",
+                            seenCount: seenCounts?.[String(message.id)] || Math.max(message.seenCount || 0, 1),
+                        };
+                    }),
+                };
+            });
+        };
+
+        const handleUserTyping = ({ conversationId, userId }) => {
+            if (!conversationId || String(userId) === String(user._id)) return;
+            setTypingChatId(String(conversationId));
+        };
+
+        const handleUserStoppedTyping = ({ conversationId, userId }) => {
+            if (String(userId) === String(user._id)) return;
+            setTypingChatId((current) =>
+                !conversationId || String(current) === String(conversationId) ? null : current
+            );
+        };
+
+        const handlePresenceSnapshot = ({ userIds = [] }) => {
+            onlineUserIdsRef.current = new Set(userIds.map(String));
+            setContacts((prev) => prev.map((contact) => ({
+                ...contact,
+                online: !contact.isGroup && onlineUserIdsRef.current.has(String(contact.otherUserId)),
+            })));
+        };
+
+        const handleUserOnline = ({ userId }) => {
+            if (!userId) return;
+            onlineUserIdsRef.current.add(String(userId));
+            setContacts((prev) => prev.map((contact) =>
+                String(contact.otherUserId) === String(userId)
+                    ? { ...contact, online: true }
+                    : contact
+            ));
+        };
+
+        const handleUserOffline = ({ userId }) => {
+            if (!userId) return;
+            onlineUserIdsRef.current.delete(String(userId));
+            setContacts((prev) => prev.map((contact) =>
+                String(contact.otherUserId) === String(userId)
+                    ? { ...contact, online: false }
+                    : contact
+            ));
+        };
+
+        const handleSocketError = (message) => {
+            setMessagesError((prev) => ({
+                ...prev,
+                [activeChatIdRef.current || "socket"]: typeof message === "string" ? message : "Socket error",
+            }));
+        };
+
+        socket.on("connect", () => {
+            for (const chatId of loadedChatsRef.current) {
+                socket.emit("joinConversation", chatId);
+                joinedChatRef.current.add(chatId);
+            }
+        });
+
+        socket.on("newMessage", handleNewMessage);
+        socket.on("messageDeleted", handleMessageDeleted);
+        socket.on("messageEdited", handleMessageEdited);
+        socket.on("messageDelivered", handleMessageDelivered);
+        socket.on("messagesSeen", handleMessagesSeen);
+        socket.on("userTyping", handleUserTyping);
+        socket.on("userStoppedTyping", handleUserStoppedTyping);
+        socket.on("presenceSnapshot", handlePresenceSnapshot);
+        socket.on("userOnline", handleUserOnline);
+        socket.on("userOffline", handleUserOffline);
+        socket.on("socketError", handleSocketError);
+        socket.on("connect_error", (error) => {
+            console.error("TalkVerse Socket.IO connection failed:", error.message);
+        });
+
+        return () => {
+            socket.off("newMessage", handleNewMessage);
+            socket.off("messageDeleted", handleMessageDeleted);
+            socket.off("messageEdited", handleMessageEdited);
+            socket.off("messageDelivered", handleMessageDelivered);
+            socket.off("messagesSeen", handleMessagesSeen);
+            socket.off("userTyping", handleUserTyping);
+            socket.off("userStoppedTyping", handleUserStoppedTyping);
+            socket.off("presenceSnapshot", handlePresenceSnapshot);
+            socket.off("userOnline", handleUserOnline);
+            socket.off("userOffline", handleUserOffline);
+            socket.off("socketError", handleSocketError);
+            socket.disconnect();
+            socketRef.current = null;
+            joinedChatRef.current.clear();
+        };
+    }, [isAuthenticated, user?._id]);
 
     // Load real conversations only after authentication is restored/created.
     useEffect(() => {
@@ -159,6 +495,7 @@ export function ChatProvider({ children }) {
             setContactsLoading(false);
             setContactsError(null);
             loadedChatsRef.current.clear();
+            onlineUserIdsRef.current.clear();
             return () => {
                 cancelled = true;
             };
@@ -173,10 +510,47 @@ export function ChatProvider({ children }) {
                 const conversationsResponse = await getMyConversations();
                 if (cancelled) return;
 
-                const adapted = (conversationsResponse?.data || []).map((conversation) =>
-                    adaptConversation(conversation, user._id)
-                );
-                setContacts(adapted);
+                const adapted = (conversationsResponse?.data || []).map((conversation) => {
+                    const contact = adaptConversation(conversation, user._id);
+                    return contact.isGroup
+                        ? contact
+                        : { ...contact, online: onlineUserIdsRef.current.has(String(contact.otherUserId)) };
+                });
+                const merged = adapted.map((contact) => {
+                    const pending = latestSocketMessageRef.current.get(String(contact.id));
+                    if (!pending) return contact;
+
+                    const serverTime = contact.lastMessageCreatedAt ? new Date(contact.lastMessageCreatedAt).getTime() : 0;
+                    const socketTime = pending.createdAt ? new Date(pending.createdAt).getTime() : Date.now();
+                    if (socketTime >= serverTime) {
+                        return {
+                            ...contact,
+                            lastMessage: pending.text,
+                            lastMessageTime: pending.time,
+                            lastMessageCreatedAt: pending.createdAt || contact.lastMessageCreatedAt || null,
+                            lastMessageFromMe: pending.fromMe,
+                        };
+                    }
+                    return contact;
+                });
+
+                setContacts(merged);
+                setUnreadCounts((prev) => {
+                    const next = Object.fromEntries(
+                        merged
+                            .filter((contact) => Number(contact.unreadCount || 0) > 0)
+                            .map((contact) => [contact.id, Number(contact.unreadCount || 0)])
+                    );
+                    // Preserve a just-arrived socket unread when the REST request
+                    // raced the message write and returned an older unread count.
+                    for (const contact of merged) {
+                        const pending = latestSocketMessageRef.current.get(String(contact.id));
+                        if (pending && !pending.fromMe && String(contact.id) !== String(activeChatIdRef.current)) {
+                            next[contact.id] = Math.max(next[contact.id] || 0, prev[contact.id] || 0, 1);
+                        }
+                    }
+                    return next;
+                });
             } catch (error) {
                 if (!cancelled) {
                     setContactsError(
@@ -192,6 +566,62 @@ export function ChatProvider({ children }) {
         return () => {
             cancelled = true;
         };
+    }, [isAuthenticated, user?._id]);
+
+    // Refresh the chat list when a friend request is accepted elsewhere in the app.
+    useEffect(() => {
+        const refreshConversations = async () => {
+            if (!isAuthenticated || !user?._id) return;
+            try {
+                const response = await getMyConversations();
+                const adapted = (response?.data || []).map((conversation) => {
+                    const contact = adaptConversation(conversation, user._id);
+                    return contact.isGroup
+                        ? contact
+                        : { ...contact, online: onlineUserIdsRef.current.has(String(contact.otherUserId)) };
+                });
+                const merged = adapted.map((contact) => {
+                    const pending = latestSocketMessageRef.current.get(String(contact.id));
+                    if (!pending) return contact;
+
+                    const serverTime = contact.lastMessageCreatedAt ? new Date(contact.lastMessageCreatedAt).getTime() : 0;
+                    const socketTime = pending.createdAt ? new Date(pending.createdAt).getTime() : Date.now();
+                    if (socketTime >= serverTime) {
+                        return {
+                            ...contact,
+                            lastMessage: pending.text,
+                            lastMessageTime: pending.time,
+                            lastMessageCreatedAt: pending.createdAt || contact.lastMessageCreatedAt || null,
+                            lastMessageFromMe: pending.fromMe,
+                        };
+                    }
+                    return contact;
+                });
+
+                setContacts(merged);
+                setUnreadCounts((prev) => {
+                    const next = Object.fromEntries(
+                        merged
+                            .filter((contact) => Number(contact.unreadCount || 0) > 0)
+                            .map((contact) => [contact.id, Number(contact.unreadCount || 0)])
+                    );
+                    // Preserve a just-arrived socket unread when the REST request
+                    // raced the message write and returned an older unread count.
+                    for (const contact of merged) {
+                        const pending = latestSocketMessageRef.current.get(String(contact.id));
+                        if (pending && !pending.fromMe && String(contact.id) !== String(activeChatIdRef.current)) {
+                            next[contact.id] = Math.max(next[contact.id] || 0, prev[contact.id] || 0, 1);
+                        }
+                    }
+                    return next;
+                });
+            } catch {
+                // The regular loading effect handles the initial error state.
+            }
+        };
+
+        window.addEventListener("talkverse:conversations-updated", refreshConversations);
+        return () => window.removeEventListener("talkverse:conversations-updated", refreshConversations);
     }, [isAuthenticated, user?._id]);
 
     // Task 2: replace dummy messages with the real messages API (paginated fetch).
@@ -239,6 +669,15 @@ export function ChatProvider({ children }) {
         // conversation yet, so there's nothing to fetch for them.
         if (chatId.startsWith("group-")) return;
 
+        if (socketRef.current && socketRef.current.connected && !joinedChatRef.current.has(chatId)) {
+            socketRef.current.emit("joinConversation", chatId);
+            joinedChatRef.current.add(chatId);
+        }
+
+        if (socketRef.current?.connected) {
+            socketRef.current.emit("markMessagesSeen", chatId);
+        }
+
         if (!loadedChatsRef.current.has(chatId)) {
             loadedChatsRef.current.add(chatId);
             fetchMessages(chatId, { page: 1, append: false });
@@ -247,37 +686,88 @@ export function ChatProvider({ children }) {
 
     const closeChat = useCallback(() => setActiveChatId(null), []);
 
-    const sendMessage = useCallback((chatId, text, replyTo = null) => {
+    const startTyping = useCallback((chatId) => {
+        const socket = socketRef.current;
+        if (!socket?.connected || !chatId) return;
+        socket.emit("typing", chatId);
+
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => {
+            socketRef.current?.emit("stopTyping", chatId);
+        }, 1200);
+    }, []);
+
+    const stopTyping = useCallback((chatId) => {
+        if (typingTimeoutRef.current) {
+            clearTimeout(typingTimeoutRef.current);
+            typingTimeoutRef.current = null;
+        }
+        socketRef.current?.emit("stopTyping", chatId);
+    }, []);
+
+    const markMessagesSeen = useCallback((chatId) => {
+        if (!chatId || !socketRef.current?.connected) return;
+        socketRef.current.emit("markMessagesSeen", chatId);
+        setUnreadCounts((prev) => ({ ...prev, [chatId]: 0 }));
+    }, []);
+
+    const sendMessage = useCallback(async (chatId, text, replyTo = null) => {
         const trimmed = text.trim();
         if (!trimmed) return;
 
-        const newMessage = { id: nextId(), from: "me", text: trimmed, time: formatNow(), status: "sent", ...(replyTo ? { replyTo: { id: replyTo.id, text: replyTo.text, from: replyTo.from } } : {}) };
-        setMessagesByChat((prev) => ({
-            ...prev,
-            [chatId]: [...(prev[chatId] || []), newMessage],
-        }));
-
-        setTimeout(() => {
-            setMessagesByChat((prev) => ({
+        const socket = socketRef.current;
+        if (!socket?.connected) {
+            setMessagesError((prev) => ({
                 ...prev,
-                [chatId]: (prev[chatId] || []).map((m) => (m.id === newMessage.id ? { ...m, status: "delivered" } : m)),
+                [chatId]: "Real-time connection is not available. Please try again.",
             }));
-        }, 500);
+            return;
+        }
 
-        const typingDelay = 600 + Math.random() * 400;
-        const replyDelay = typingDelay + 1200 + Math.random() * 900;
+        // The Socket.IO server saves to MongoDB first and emits newMessage
+        // only after the save succeeds. Do not append optimistically here.
+        socket.emit("sendMessage", {
+            conversationId: chatId,
+            content: trimmed,
+        });
+    }, []);
 
-        setTimeout(() => setTypingChatId(chatId), typingDelay);
-        setTimeout(() => {
-            setTypingChatId((current) => (current === chatId ? null : current));
-            setMessagesByChat((prev) => ({
+    const sendMediaMessage = useCallback(async (chatId, file) => {
+        if (!file) return false;
+        try {
+            const formData = new FormData();
+            formData.append("media", file);
+
+            const response = await import("../api/messages").then((module) =>
+                module.sendMediaMessage(chatId, formData)
+            );
+
+            const savedMessage = response?.data;
+            if (!savedMessage?._id) throw new Error("Media message was not saved");
+
+            // REST saves the file/message. Socket.IO broadcasts the persisted
+            // message to every participant so the recipient gets it realtime.
+            if (socketRef.current?.connected) {
+                socketRef.current.emit("broadcastMediaMessage", {
+                    conversationId: chatId,
+                    messageId: savedMessage._id,
+                });
+            } else {
+                const adapted = adaptMessage(savedMessage, currentUserIdRef.current);
+                setMessagesByChat((prev) => ({
+                    ...prev,
+                    [chatId]: [...(prev[chatId] || []), adapted],
+                }));
+            }
+
+            return true;
+        } catch (error) {
+            setMessagesError((prev) => ({
                 ...prev,
-                [chatId]: [
-                    ...(prev[chatId] || []),
-                    { id: nextId(), from: "them", text: pickAutoReply(), time: formatNow(), status: "read" },
-                ],
+                [chatId]: error?.response?.data?.message || error?.message || "Failed to send media",
             }));
-        }, replyDelay);
+            return false;
+        }
     }, []);
 
     const forwardMessage = useCallback((targetChatId, message) => {
@@ -305,11 +795,20 @@ export function ChatProvider({ children }) {
         setMessagesByChat((prev) => ({
             ...prev,
             [chatId]: (prev[chatId] || []).map((message) => {
-                if (message.id !== messageId || message.from !== "me" || message.deleted) return message;
+                if (String(message.id) !== String(messageId) || message.from !== "me" || message.deleted) return message;
                 edited = true;
                 return { ...message, text: trimmed, edited: true, editedAt: Date.now() };
             }),
         }));
+
+        if (edited) {
+            socketRef.current?.emit("editMessage", {
+                conversationId: chatId,
+                messageId,
+                content: trimmed,
+            });
+        }
+
         return edited;
     }, []);
 
@@ -337,6 +836,13 @@ export function ChatProvider({ children }) {
                 return message;
             }),
         }));
+
+        // Persist + broadcast the deletion through Socket.IO so every
+        // participant updates immediately, even if their chat is closed.
+        socketRef.current?.emit("deleteMessage", {
+            conversationId: chatId,
+            messageId,
+        });
     }, []);
 
     const createGroup = useCallback((name, memberIds) => {
@@ -423,6 +929,10 @@ export function ChatProvider({ children }) {
             closeChat,
             messagesByChat,
             sendMessage,
+            sendMediaMessage,
+            startTyping,
+            stopTyping,
+            markMessagesSeen,
             deleteMessage,
             editMessage,
             forwardMessage,
@@ -451,6 +961,10 @@ export function ChatProvider({ children }) {
             closeChat,
             messagesByChat,
             sendMessage,
+            sendMediaMessage,
+            startTyping,
+            stopTyping,
+            markMessagesSeen,
             deleteMessage,
             editMessage,
             forwardMessage,

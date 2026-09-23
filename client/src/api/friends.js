@@ -35,6 +35,11 @@ export const blockUser = async (userId) => {
     return response.data;
 };
 
+export const getBlockedUsers = async () => {
+    const response = await api.get("/connections/blocked");
+    return response.data;
+};
+
 export const unblockUser = async (userId) => {
     const response = await api.delete(`/connections/block/${userId}`);
     return response.data;

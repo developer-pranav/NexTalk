@@ -1,8 +1,9 @@
 import { Bell, MessageSquare, Search } from "lucide-react";
 import Avatar from "./Avatar";
-import { currentUser } from "../data/dummyData";
+import { useAuth } from "../context/AuthContext";
 
 export default function IconRail({ active = "chats", onChangeTab, onOpenProfile }) {
+    const { user } = useAuth();
     const items = [
         { key: "chats", label: "Chats", icon: MessageSquare },
         { key: "search", label: "Search", icon: Search },
@@ -23,7 +24,7 @@ export default function IconRail({ active = "chats", onChangeTab, onOpenProfile 
                 })}
                 <div className="my-1 h-px w-6" style={{ background: "var(--border)" }} />
                 <button onClick={onOpenProfile} className="rounded-full transition-transform active:scale-90" aria-label="Open profile">
-                    <Avatar name={currentUser.name} initials={currentUser.initials} color={currentUser.color} size="sm" />
+                    <Avatar name={user?.fullname || user?.name} initials={user?.initials} src={user?.avatar} color="var(--accent)" size="sm" />
                 </button>
             </div>
         </div>

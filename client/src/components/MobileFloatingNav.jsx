@@ -1,8 +1,9 @@
 import { Bell, MessageSquare, Search } from "lucide-react";
 import Avatar from "./Avatar";
-import { currentUser } from "../data/dummyData";
+import { useAuth } from "../context/AuthContext";
 
 export default function MobileFloatingNav({ active, onChangeTab, onOpenProfile, profileOpen }) {
+    const { user } = useAuth();
     const items = [
         { key: "chats", label: "Chats", icon: MessageSquare },
         { key: "search", label: "Search", icon: Search },
@@ -25,7 +26,7 @@ export default function MobileFloatingNav({ active, onChangeTab, onOpenProfile, 
                     );
                 })}
                 <button type="button" onClick={onOpenProfile} className="grid place-items-center rounded-full transition-all duration-150 active:scale-90" style={{ padding: profileOpen ? 2 : 0, border: profileOpen ? "2px solid var(--accent)" : "2px solid transparent" }} aria-label="Open profile">
-                    <Avatar name={currentUser.name} initials={currentUser.initials} color={currentUser.color} size="sm" />
+                    <Avatar name={user?.fullname || user?.name} initials={user?.initials} src={user?.avatar} color="var(--accent)" size="sm" />
                 </button>
             </div>
         </div>

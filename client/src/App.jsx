@@ -17,7 +17,7 @@ function AuthenticatedApp() {
 
     useEffect(() => {
         if (loading) return;
-        const isAppRoute = pathname === AUTH_ROUTES.HOME || pathname === "/search" || pathname === "/requests";
+        const isAppRoute = pathname === AUTH_ROUTES.HOME || pathname === "/search" || pathname === "/requests" || pathname === "/profile" || pathname === "/new-group" || pathname.startsWith("/chat/");
         if (isAuthenticated && !isAppRoute) {
             navigate(AUTH_ROUTES.HOME, { replace: true });
             return;

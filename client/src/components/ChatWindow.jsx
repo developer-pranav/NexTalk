@@ -49,8 +49,12 @@ export default function ChatWindow({ contact, onBack }) {
     const {
         messagesByChat,
         sendMessage,
+        sendMediaMessage,
         editMessage,
         typingChatId,
+        startTyping,
+        stopTyping,
+        markMessagesSeen,
         clearChat,
         toggleBlock,
         toggleMute,
@@ -73,6 +77,8 @@ export default function ChatWindow({ contact, onBack }) {
     const [replyTo, setReplyTo] = useState(null);
     const [editingMessage, setEditingMessage] = useState(null);
     const [confirmAction, setConfirmAction] = useState(null);
+    const [mediaUploading, setMediaUploading] = useState(false);
+    const [uploadName, setUploadName] = useState("");
 
     useEffect(() => {
         if (!toastMsg) return;
@@ -85,6 +91,10 @@ export default function ChatWindow({ contact, onBack }) {
     }, [toastMsg]);
 
     const isBlocked = Boolean(contact.blocked);
+
+    useEffect(() => {
+        markMessagesSeen(contact.id);
+    }, [contact.id, markMessagesSeen]);
 
     const handleSearchMatches = useCallback((count) => {
         setSearchCount(count);
@@ -166,6 +176,18 @@ export default function ChatWindow({ contact, onBack }) {
 
 
             <div className="absolute inset-x-0 top-0 z-30">
+                {mediaUploading && (
+                    <div className="pointer-events-none absolute inset-x-3 top-[4px] z-50 flex justify-center sm:inset-x-5">
+                        <div
+                            className="flex w-full max-w-sm items-center gap-2 rounded-full border px-3 py-2 text-[12px] shadow-[var(--shadow-sm)] backdrop-blur-md"
+                            style={{ background: "color-mix(in srgb, var(--surface) 92%, transparent)", borderColor: "var(--border)", color: "var(--text-muted)" }}
+                        >
+                            <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--accent)]" />
+                            <span className="min-w-0 flex-1 truncate">Uploading{uploadName ? ` · ${uploadName}` : "…"}</span>
+                        </div>
+                    </div>
+                )}
+
                 <ChatHeader
                     contact={contact}
                     onBack={onBack}
@@ -219,6 +241,15 @@ export default function ChatWindow({ contact, onBack }) {
                         sendMessage(contact.id, text, reply);
                         setReplyTo(null);
                     }}
+                    onSendMedia={async (file) => {
+                        const ok = await sendMediaMessage(contact.id, file);
+                        if (ok) setToastMsg("Media sent");
+                        return ok;
+                    }}
+                    onMediaUploading={(uploading, file) => {
+                        setMediaUploading(uploading);
+                        setUploadName(uploading ? (file?.name || "media") : "");
+                    }}
                     editingMessage={editingMessage}
                     onCancelEdit={() => setEditingMessage(null)}
                     onEdit={(text) => {
@@ -232,6 +263,10 @@ export default function ChatWindow({ contact, onBack }) {
                     disabled={isBlocked}
                     disabledMessage={`You've blocked ${contact.name}`}
                     onNotify={setToastMsg}
+                    onTyping={(text) => {
+                        if (text.trim()) startTyping(contact.id);
+                        else stopTyping(contact.id);
+                    }}
                 />
             </div>
 
