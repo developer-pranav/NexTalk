@@ -5,6 +5,14 @@ export default function ChatListItem({ contact, active, onSelect }) {
   const { messagesByChat, unreadCounts, typingChatId } = useChat();
   const messages = messagesByChat[contact.id] || [];
   const last = messages[messages.length - 1];
+  // Prefer the conversation's persisted lastMessage from MongoDB. The
+  // in-memory message list may still be empty/stale until the chat is opened.
+  const lastText = contact.lastMessage
+    ? `${contact.lastMessageFromMe ? "You: " : ""}${contact.lastMessage}`
+    : last
+      ? `${last.from === "me" ? "You: " : ""}${last.text}`
+      : "No messages yet";
+  const lastTime = contact.lastMessageTime || last?.time;
   const unread = unreadCounts[contact.id] || 0;
   const isTyping = typingChatId === contact.id;
 
@@ -27,9 +35,9 @@ export default function ChatListItem({ contact, active, onSelect }) {
           <p className="truncate text-[14px] font-medium" style={{ color: "var(--text)" }}>
             {contact.name}
           </p>
-          {last && (
+          {lastTime && (
             <span className="shrink-0 text-[11px]" style={{ color: unread ? "var(--accent)" : "var(--text-faint)" }}>
-              {last.time}
+              {lastTime}
             </span>
           )}
         </div>
@@ -38,7 +46,7 @@ export default function ChatListItem({ contact, active, onSelect }) {
             className="truncate text-[13px]"
             style={{ color: isTyping ? "var(--accent)" : "var(--text-muted)" }}
           >
-            {isTyping ? "typing…" : last ? `${last.from === "me" ? "You: " : ""}${last.text}` : "No messages yet"}
+            {isTyping ? "typing…" : lastText}
           </p>
           {unread > 0 && (
             <span

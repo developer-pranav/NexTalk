@@ -621,3 +621,706 @@ button {
     .auth-card-header { padding: 24px 22px 17px; }
     .auth-card-body { padding: 0 22px 24px; }
 }
+
+/* ==========================================================================
+   TalkVerse media UI
+   Thumbnails · audio card · lightbox · video player
+   Used only by components/MessageBubble.jsx (all classes are `tv-` prefixed).
+   ========================================================================== */
+
+/* ---- Media bubble sizing ---------------------------------------------------
+   Every media bubble in a chat gets the same width, capped by the row
+   (the Tailwind max-w-[78%] / sm:max-w-[65%] on the bubble), so a thumbnail can
+   never be wider than its bubble or push the list sideways. ---------------- */
+.tv-bubble-media {
+    width: min(360px, 100%);
+    min-width: 0;
+}
+
+.tv-bubble-audio {
+    width: min(320px, 100%);
+}
+
+/* ---- Shared: icon buttons, time text, pills -------------------------------- */
+.tv-nudge {
+    /* optically centres the play triangle */
+    margin-left: 2px;
+}
+
+.tv-time {
+    font-size: 11px;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.tv-icon-btn {
+    display: grid;
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    transition: background-color 150ms ease, color 150ms ease;
+}
+
+.tv-icon-btn:hover {
+    background: var(--surface-hover);
+    color: var(--text);
+}
+
+.tv-icon-btn:focus-visible,
+.tv-audio-play:focus-visible,
+.tv-ctl:focus-visible,
+.tv-bigplay:focus-visible,
+.tv-viewer-close:focus-visible,
+.tv-thumb-hit:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Pill drawn over a thumbnail (timestamp, duration) */
+.tv-chip {
+    position: absolute;
+    bottom: 8px;
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgb(0 0 0 / 55%);
+    color: #fff;
+    font-size: 11px;
+    line-height: 16px;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+}
+
+.tv-chip-right {
+    right: 8px;
+}
+
+.tv-chip-left {
+    left: 8px;
+}
+
+/* ---- Range slider (seek + volume) ------------------------------------------
+   Visual track is 4px; the input itself is taller so it's easy to hit.
+   `--p` (set inline) is the filled percentage. ------------------------------ */
+.tv-range {
+    --p: 0%;
+    --tv-fill: var(--accent);
+    --tv-track: var(--border-strong);
+    --tv-thumb: 12px;
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    width: 100%;
+    height: 18px;
+    margin: 0;
+    padding: 0;
+    border-radius: 999px;
+    background: transparent;
+    cursor: pointer;
+    outline: none;
+    touch-action: pan-y; /* horizontal drags scrub, vertical drags still scroll the chat */
+}
+
+.tv-range::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(to right, var(--tv-fill) var(--p), var(--tv-track) var(--p));
+}
+
+.tv-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: var(--tv-thumb);
+    height: var(--tv-thumb);
+    margin-top: calc((4px - var(--tv-thumb)) / 2);
+    border: 0;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 45%);
+    transition: transform 120ms ease;
+}
+
+.tv-range::-moz-range-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--tv-track);
+}
+
+.tv-range::-moz-range-progress {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--tv-fill);
+}
+
+.tv-range::-moz-range-thumb {
+    width: var(--tv-thumb);
+    height: var(--tv-thumb);
+    border: 0;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 4px rgb(0 0 0 / 45%);
+    transition: transform 120ms ease;
+}
+
+.tv-range:hover::-webkit-slider-thumb,
+.tv-range:active::-webkit-slider-thumb,
+.tv-range:focus-visible::-webkit-slider-thumb {
+    transform: scale(1.25);
+}
+
+.tv-range:hover::-moz-range-thumb,
+.tv-range:active::-moz-range-thumb,
+.tv-range:focus-visible::-moz-range-thumb {
+    transform: scale(1.25);
+}
+
+.tv-range:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+}
+
+/* ---- Volume group (mute button + slider) ----------------------------------- */
+.tv-vol {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.tv-vol-range {
+    width: 56px;
+}
+
+/* ==========================================================================
+   Thumbnails (image + video preview inside a message)
+   ========================================================================== */
+.tv-thumb {
+    position: relative;
+    isolation: isolate; /* keeps the rounded clip correct while children scale/blur */
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: 12px;
+    background: var(--surface-2);
+    color: #fff;
+}
+
+/* frameless media (no bubble around it): match the bubble's 16px corners */
+.tv-frameless .tv-thumb {
+    border-radius: 16px;
+}
+
+.tv-thumb-media {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    pointer-events: none;
+    user-select: none;
+    -webkit-user-drag: none;
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1), filter 220ms ease;
+}
+
+@media (hover: hover) {
+    .tv-thumb:hover .tv-thumb-media {
+        transform: scale(1.04);
+        filter: brightness(0.9);
+    }
+}
+
+/* Transparent full-size button = the click / focus target */
+.tv-thumb-hit {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: zoom-in;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    outline-offset: -3px;
+}
+
+.tv-thumb-play {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 2;
+    display: grid;
+    width: 52px;
+    height: 52px;
+    place-items: center;
+    padding-left: 3px;
+    border-radius: 999px;
+    background: rgb(0 0 0 / 55%);
+    box-shadow: 0 10px 30px rgb(0 0 0 / 25%);
+    color: #fff;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    transition: transform 180ms ease, background-color 180ms ease;
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+}
+
+@media (hover: hover) {
+    .tv-thumb:hover .tv-thumb-play {
+        transform: translate(-50%, -50%) scale(1.08);
+        background: rgb(0 0 0 / 68%);
+    }
+}
+
+.tv-thumb-fallback {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    color: var(--text-faint);
+    font-size: 12px;
+}
+
+/* ==========================================================================
+   Audio message card
+   ========================================================================== */
+.tv-audio {
+    container-type: inline-size;
+    container-name: tv-audio;
+    width: 100%;
+    padding: 10px 12px 8px;
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--surface);
+    box-shadow: var(--shadow-sm);
+    color: var(--text);
+}
+
+/* messages you sent get a soft accent tint so the two sides stay distinguishable */
+.tv-audio-me {
+    border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+    background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+}
+
+.tv-audio.is-failed {
+    opacity: 0.65;
+}
+
+.tv-audio-grid {
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    column-gap: 10px;
+    row-gap: 2px;
+    align-items: center;
+}
+
+.tv-audio-play {
+    grid-row: 1 / span 2;
+    display: grid;
+    width: 40px;
+    height: 40px;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--accent-text);
+    cursor: pointer;
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent);
+    transition: transform 150ms ease, background-color 150ms ease, opacity 150ms ease;
+}
+
+.tv-audio-play:hover:not(:disabled) {
+    background: var(--accent-hover);
+}
+
+.tv-audio-play:active:not(:disabled) {
+    transform: scale(0.94);
+}
+
+.tv-audio-play:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.tv-audio-seek {
+    grid-column: 2;
+    align-self: end;
+}
+
+.tv-audio-info {
+    grid-column: 2;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+    color: var(--text-muted);
+}
+
+.tv-audio-info .tv-vol {
+    margin-right: -4px;
+}
+
+.tv-audio-info .tv-vol-range {
+    --tv-thumb: 10px;
+    width: 52px;
+}
+
+/* very narrow bubbles: keep just the mute button */
+@container tv-audio (max-width: 210px) {
+    .tv-audio-info .tv-vol-range {
+        display: none;
+    }
+}
+
+.tv-audio-meta {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    margin-top: 2px;
+    color: var(--text-faint);
+    font-size: 11px;
+    line-height: 1.2;
+}
+
+/* ==========================================================================
+   Lightbox
+   Portalled to <body>. Open/close is transition-driven from [data-open]; the
+   component removes it after VIEWER_CLOSE_MS, so it can never get stuck
+   (even with prefers-reduced-motion).
+   ========================================================================== */
+.tv-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 150;
+    outline: none;
+    overscroll-behavior: contain;
+}
+
+.tv-viewer-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgb(6 7 10 / 88%);
+    opacity: 0;
+    transition: opacity 200ms ease;
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+}
+
+.tv-viewer[data-open="true"] .tv-viewer-backdrop {
+    opacity: 1;
+    transition-duration: 260ms;
+}
+
+/* The stage fills the viewport, so --tv-ox/--tv-oy (the thumbnail's centre in
+   viewport px) make the content grow out of / shrink back into its thumbnail. */
+.tv-viewer-stage {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    opacity: 0;
+    transform: scale(0.72);
+    transform-origin: var(--tv-ox, 50%) var(--tv-oy, 50%);
+    transition: transform 200ms cubic-bezier(0.4, 0, 1, 1), opacity 180ms ease;
+    will-change: transform, opacity;
+}
+
+.tv-viewer[data-open="true"] .tv-viewer-stage {
+    opacity: 1;
+    transform: none;
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1), opacity 240ms ease;
+}
+
+.tv-viewer-content {
+    display: flex;
+    max-width: 100%;
+    max-height: 100%;
+    align-items: center;
+    justify-content: center;
+}
+
+.tv-viewer-img {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: min(96vw, 1600px);
+    max-height: 88vh;
+    object-fit: contain;
+    border-radius: 12px;
+    box-shadow: 0 30px 90px rgb(0 0 0 / 50%);
+    user-select: none;
+}
+
+.tv-viewer-close {
+    position: absolute;
+    top: max(14px, env(safe-area-inset-top));
+    right: max(14px, env(safe-area-inset-right));
+    z-index: 3;
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border: 1px solid rgb(255 255 255 / 12%);
+    border-radius: 999px;
+    background: rgb(23 24 29 / 78%);
+    color: #fff;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 180ms ease, background-color 150ms ease, transform 150ms ease;
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+}
+
+.tv-viewer[data-open="true"] .tv-viewer-close {
+    opacity: 1;
+    transition-delay: 80ms, 0s, 0s;
+}
+
+.tv-viewer-close:hover {
+    background: rgb(44 46 54 / 92%);
+    transform: scale(1.06);
+}
+
+.tv-viewer-close:active {
+    transform: scale(0.95);
+}
+
+@supports (height: 1dvh) {
+    .tv-viewer-img {
+        max-height: 88dvh;
+    }
+}
+
+/* ==========================================================================
+   Video player (inside the lightbox)
+   ========================================================================== */
+.tv-player {
+    --ratio: 1.7778; /* real ratio is set from the video's metadata */
+    container-type: inline-size;
+    container-name: tv-player;
+    position: relative;
+    width: min(94vw, 1100px, calc(88vh * var(--ratio)));
+    aspect-ratio: var(--ratio);
+    overflow: hidden;
+    border-radius: 16px;
+    background: #000;
+    color: #fff;
+    box-shadow: 0 30px 90px rgb(0 0 0 / 55%);
+}
+
+@supports (height: 1dvh) {
+    .tv-player {
+        width: min(94vw, 1100px, calc(88dvh * var(--ratio)));
+    }
+}
+
+.tv-player-video {
+    position: absolute;
+    inset: 0;
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #000;
+    cursor: pointer;
+}
+
+.tv-player[data-idle="true"] {
+    cursor: none;
+}
+
+.tv-player[data-idle="true"] .tv-player-video {
+    cursor: none;
+}
+
+.tv-bigplay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 2;
+    display: grid;
+    width: 68px;
+    height: 68px;
+    place-items: center;
+    padding-left: 3px;
+    border: 1px solid rgb(255 255 255 / 12%);
+    border-radius: 999px;
+    background: rgb(20 21 26 / 62%);
+    box-shadow: 0 14px 40px rgb(0 0 0 / 35%);
+    color: #fff;
+    cursor: pointer;
+    transform: translate(-50%, -50%) scale(1);
+    transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1), opacity 160ms ease, background-color 150ms ease;
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+}
+
+.tv-bigplay:hover {
+    background: rgb(30 32 40 / 80%);
+    transform: translate(-50%, -50%) scale(1.06);
+}
+
+.tv-bigplay[data-visible="false"] {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0.8);
+}
+
+.tv-player-error {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    z-index: 2;
+    padding: 8px 14px;
+    border-radius: 999px;
+    background: rgb(20 21 26 / 80%);
+    font-size: 13px;
+    transform: translate(-50%, -50%);
+}
+
+/* Floating glass control bar */
+.tv-controls {
+    position: absolute;
+    right: 10px;
+    bottom: 10px;
+    left: 10px;
+    z-index: 3;
+    padding: 4px 10px 6px;
+    border: 1px solid rgb(255 255 255 / 9%);
+    border-radius: 14px;
+    background: rgb(18 19 24 / 80%);
+    box-shadow: 0 16px 40px rgb(0 0 0 / 35%);
+    transition: opacity 200ms ease, transform 200ms ease;
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+}
+
+.tv-player[data-idle="true"] .tv-controls {
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+}
+
+.tv-controls .tv-range {
+    --tv-track: rgb(255 255 255 / 22%);
+}
+
+.tv-controls-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgb(255 255 255 / 92%);
+}
+
+.tv-time-total {
+    opacity: 0.55;
+}
+
+.tv-spacer {
+    flex: 1 1 auto;
+}
+
+.tv-ctl {
+    display: grid;
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    place-items: center;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.tv-ctl:hover {
+    background: rgb(255 255 255 / 14%);
+}
+
+.tv-ctl:active {
+    transform: scale(0.93);
+}
+
+.tv-controls .tv-vol-range {
+    --tv-thumb: 11px;
+    width: 76px;
+}
+
+/* phones: hardware keys handle volume, so keep only the mute button */
+@container tv-player (max-width: 460px) {
+    .tv-controls .tv-vol-range {
+        display: none;
+    }
+
+    .tv-controls {
+        right: 6px;
+        bottom: 6px;
+        left: 6px;
+    }
+}
+
+/* Fullscreen: the player element itself goes fullscreen so the custom controls stay */
+.tv-player:fullscreen {
+    width: 100vw;
+    height: 100vh;
+    aspect-ratio: auto;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+.tv-player:-webkit-full-screen {
+    width: 100vw;
+    height: 100vh;
+    aspect-ratio: auto;
+    border-radius: 0;
+    box-shadow: none;
+}
+
+/* ---- Reduced motion --------------------------------------------------------
+   No movement; the component still closes on a 0ms timer, so nothing sticks. */
+@media (prefers-reduced-motion: reduce) {
+
+    .tv-viewer-backdrop,
+    .tv-viewer-stage,
+    .tv-viewer-close,
+    .tv-thumb-media,
+    .tv-thumb-play,
+    .tv-bigplay,
+    .tv-controls,
+    .tv-ctl,
+    .tv-icon-btn,
+    .tv-audio-play,
+    .tv-range::-webkit-slider-thumb {
+        transition: none !important;
+    }
+
+    .tv-viewer-stage {
+        transform: none !important;
+    }
+}

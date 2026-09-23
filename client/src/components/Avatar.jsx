@@ -6,14 +6,18 @@ const SIZES = {
   "2xl": "h-24 w-24 text-2xl",
 };
 
-export default function Avatar({ name, initials, color, size = "md", online, showPresence = false }) {
+export default function Avatar({ name, initials, color = "#6B7280", size = "md", online, showPresence = false, src }) {
   return (
     <div className="relative shrink-0" title={name}>
       <div
-        className={`${SIZES[size]} flex items-center justify-center rounded-full font-medium select-none`}
+        className={`${SIZES[size]} overflow-hidden flex items-center justify-center rounded-full font-medium select-none`}
         style={{ backgroundColor: `${color}1F`, color }}
       >
-        {initials}
+        {src ? (
+          <img src={src} alt={name || "Avatar"} className="h-full w-full object-cover" />
+        ) : (
+          initials || name?.charAt(0)?.toUpperCase() || "?"
+        )}
       </div>
       {showPresence && (
         <span

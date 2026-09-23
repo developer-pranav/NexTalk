@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { Bell, CircleUserRound, Lock, LogOut } from "lucide-react";
+import { Bell, CircleUserRound, Lock, LogOut, ShieldBan, X } from "lucide-react";
 import Avatar from "./Avatar";
 import ThemeSwitch from "./ThemeSwitch";
 import { currentUser } from "../data/dummyData";
 import { useAuth } from "../context/AuthContext";
+import { getBlockedUsers, unblockUser } from "../api/friends.js";
+import BlocklistModal from "./BlocklistModal";
 
 function Toggle({ checked, onChange }) {
     return (
@@ -39,6 +41,43 @@ export default function SettingsBody() {
     const { logout } = useAuth();
     const [notifications, setNotifications] = useState(true);
     const [readReceipts, setReadReceipts] = useState(true);
+    const [blocklistOpen, setBlocklistOpen] = useState(false);
+    const [blockedUsers, setBlockedUsers] = useState([]);
+    const [blockedLoading, setBlockedLoading] = useState(false);
+    const [unblockingId, setUnblockingId] = useState(null);
+
+    const readBlockedUsers = (response) => {
+        if (Array.isArray(response)) return response;
+        if (Array.isArray(response?.data)) return response.data;
+        if (Array.isArray(response?.data?.data)) return response.data.data;
+        return [];
+    };
+
+    const openBlocklist = async () => {
+        setBlocklistOpen(true);
+        setBlockedLoading(true);
+        try {
+            const response = await getBlockedUsers();
+            setBlockedUsers(readBlockedUsers(response));
+        } catch (error) {
+            console.error("Failed to load blocklist:", error);
+            setBlockedUsers([]);
+        } finally {
+            setBlockedLoading(false);
+        }
+    };
+
+    const handleUnblock = async (userId) => {
+        setUnblockingId(userId);
+        try {
+            await unblockUser(userId);
+            setBlockedUsers((previous) => previous.filter((item) => String(item._id || item.id) !== String(userId)));
+        } catch (error) {
+            console.error("Unblock failed:", error);
+        } finally {
+            setUnblockingId(null);
+        }
+    };
 
     return (
         <div className="flex flex-col gap-6">
@@ -70,8 +109,20 @@ export default function SettingsBody() {
                     <div style={{ borderBottom: "1px solid var(--border)" }}>
                         <Row icon={Lock} label="Privacy" right={<span className="text-[12px]" style={{ color: "var(--text-faint)" }}>Standard</span>} />
                     </div>
+                    <button type="button" onClick={openBlocklist} className="w-full text-left" style={{ borderBottom: "1px solid var(--border)" }}>
+                        <Row icon={ShieldBan} label="Blocklist" right={<span className="text-[12px]" style={{ color: "var(--text-faint)" }}>{blockedUsers.length} blocked</span>} />
+                    </button>
                 </div>
             </div>
+
+            <BlocklistModal
+                open={blocklistOpen}
+                users={blockedUsers}
+                loading={blockedLoading}
+                unblockingId={unblockingId}
+                onClose={() => setBlocklistOpen(false)}
+                onUnblock={handleUnblock}
+            />
 
             <button
                 onClick={async () => { try { await logout(); } catch {} }}

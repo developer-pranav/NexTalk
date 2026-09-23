@@ -1,6 +1,14 @@
 import Avatar from "./Avatar";
 
 export default function ChatCard({ contact, unread, isTyping, lastMessage, onSelect, onContextMenu, delay = 0, active = false }) {
+  // Chat list can be rendered before this conversation is opened, so the
+  // in-memory messages array may be empty. Fall back to the persisted
+  // Conversation.lastMessage supplied by GET /conversations.
+  const displayLastMessage = lastMessage || (contact.lastMessage ? {
+    text: contact.lastMessage,
+    time: contact.lastMessageTime,
+    from: contact.lastMessageFromMe ? "me" : "them",
+  } : null);
   return (
     <button
       onClick={() => onSelect(contact.id)}
@@ -28,9 +36,9 @@ export default function ChatCard({ contact, unread, isTyping, lastMessage, onSel
           <p className="truncate text-[14.5px] font-semibold" style={{ color: "var(--text)" }}>
             {contact.name}
           </p>
-          {lastMessage && (
+          {displayLastMessage && (
             <span className="shrink-0 text-[11px]" style={{ color: "var(--text-faint)" }}>
-              {lastMessage.time}
+              {displayLastMessage.time}
             </span>
           )}
         </div>
@@ -41,8 +49,8 @@ export default function ChatCard({ contact, unread, isTyping, lastMessage, onSel
           >
             {isTyping
               ? "typing…"
-              : lastMessage
-              ? `${lastMessage.from === "me" ? "You: " : ""}${lastMessage.text}`
+              : displayLastMessage
+              ? `${displayLastMessage.from === "me" ? "You: " : ""}${displayLastMessage.text}`
               : "No messages yet"}
           </p>
           {unread > 0 && (

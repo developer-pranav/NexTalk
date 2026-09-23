@@ -1,13 +1,15 @@
-import connectDB from "./db/index.db.js";
 import dotenv from "dotenv";
-import { app } from "./app.js";
-import { createServer } from "http";
-import { Server } from "socket.io";
-import { initializeSocket } from "./socket/socket.js";
 
 dotenv.config({
     path: "./.env",
 });
+
+import { createServer } from "http";
+import { Server } from "socket.io";
+import { initializeSocket } from "./socket/socket.js";
+
+const { default: connectDB } = await import("./db/index.db.js");
+const { app } = await import("./app.js");
 
 const port = process.env.PORT || 8000;
 
@@ -24,7 +26,10 @@ const io = new Server(httpServer, {
 initializeSocket(io);
 
 connectDB()
-    .then(() => {
+    .then(async () => {
+        // A process restart invalidates all old sockets, so clear stale presence.
+        const { User } = await import("./models/user.model.js");
+        await User.updateMany({ isOnline: true }, { $set: { isOnline: false } });
         httpServer.listen(port, () => {
             console.log(`Server is running on port ${port}`);
         });

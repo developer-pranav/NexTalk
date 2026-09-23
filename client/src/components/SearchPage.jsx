@@ -16,6 +16,9 @@ import {
     sendFriendRequest,
     getMyConnections,
     cancelFriendRequest,
+    blockUser,
+    getBlockedUsers,
+    unblockUser,
 } from "../api/friends.js";
 
 
@@ -26,6 +29,9 @@ function PersonPreview({
     onOpenChat,
     onAddFriend,
     onCancelRequest,
+    onBlock,
+    blocked,
+    onUnblock,
     requestSent,
     requestId,
 }) {
@@ -180,7 +186,7 @@ function PersonPreview({
                     </div>
 
                     {/* Non-friend state */}
-                    {!isFriend && (
+                    {!isFriend && !blocked && (
                         <>
                             <div
                                 className="
@@ -254,6 +260,21 @@ function PersonPreview({
                         </>
                     )}
 
+                    {blocked ? (
+                        <>
+                            <div className="mt-3 rounded-[18px] px-4 py-3 text-center" style={{ background: "var(--surface-hover)", border: "1px solid var(--border)" }}>
+                                <p className="text-[12px]" style={{ color: "var(--text-muted)" }}>You have blocked this user.</p>
+                            </div>
+                            <button type="button" onClick={() => onUnblock(person.id)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-[18px] px-4 py-3 text-[13px] font-semibold" style={{ background: "var(--accent-soft)", color: "var(--accent)" }}>
+                                Unblock user
+                            </button>
+                        </>
+                    ) : (
+                        <button type="button" onClick={() => onBlock(person.id)} className="mt-3 flex w-full items-center justify-center gap-2 rounded-[18px] px-4 py-3 text-[13px] font-semibold" style={{ background: "var(--surface-hover)", color: "var(--danger)" }}>
+                            Block user
+                        </button>
+                    )}
+
                     {/* Friend state */}
                     {isFriend && (
                         <button
@@ -302,18 +323,51 @@ export default function SearchPage({ onBack, onOpenChat }) {
     const [selectedPerson, setSelectedPerson] = useState(null);
     const [connections, setConnections] = useState([]);
     const [actionId, setActionId] = useState(null);
+    const [blockedIds, setBlockedIds] = useState(new Set());
 
     const loadConnections = async () => {
         try {
             const response = await getMyConnections();
-            setConnections(response?.data || []);
+            setConnections(Array.isArray(response?.data) ? response.data : []);
         } catch (error) {
             console.error("Failed to load connections:", error);
         }
     };
 
+    const loadBlockedUsers = async () => {
+        try {
+            const response = await getBlockedUsers();
+            const users = Array.isArray(response)
+                ? response
+                : Array.isArray(response?.data)
+                    ? response.data
+                    : Array.isArray(response?.data?.data)
+                        ? response.data.data
+                        : [];
+
+            setBlockedIds(
+                new Set(
+                    users
+                        .map((item) => item?._id || item?.id || item?.userId)
+                        .filter(Boolean)
+                        .map(String)
+                )
+            );
+        } catch (error) {
+            console.error("Failed to load blocked users:", error);
+        }
+    };
+
     useEffect(() => {
         loadConnections();
+        loadBlockedUsers();
+
+        const syncBlockedUsers = () => loadBlockedUsers();
+        window.addEventListener("talkverse:blocklist-updated", syncBlockedUsers);
+
+        return () => {
+            window.removeEventListener("talkverse:blocklist-updated", syncBlockedUsers);
+        };
     }, []);
 
     useEffect(() => {
@@ -379,13 +433,15 @@ export default function SearchPage({ onBack, onOpenChat }) {
         const map = new Map();
 
         connections.forEach((connection) => {
+            // getMyConnections returns formatted user objects with _id.
+            // Older responses may still contain sender/receiver fields.
             const senderId = connection.sender?._id || connection.sender;
             const receiverId = connection.receiver?._id || connection.receiver;
-            const otherId = String(senderId) === String(user?._id)
-                ? receiverId
-                : senderId;
-
-            map.set(String(otherId), connection);
+            const otherId = connection._id && !senderId && !receiverId
+                ? connection._id
+                : (String(senderId) === String(user?._id) ? receiverId : senderId);
+            const personId = connection.id || connection.userId || otherId;
+            if (personId) map.set(String(personId), connection);
         });
 
         return map;
@@ -465,6 +521,50 @@ export default function SearchPage({ onBack, onOpenChat }) {
                     "We couldn't cancel the request. Please try again.",
                 { title: "Couldn't cancel request", type: "error" }
             );
+        } finally {
+            setActionId(null);
+        }
+    };
+
+    const handleBlockUser = async (id) => {
+        try {
+            setActionId(id);
+            await blockUser(id);
+            window.dispatchEvent(new CustomEvent("talkverse:blocklist-updated", {
+                detail: { userId: id, action: "block" },
+            }));
+            setBlockedIds((previous) => new Set([...previous, String(id)]));
+            setConnections((previous) => previous.filter((item) => {
+                const itemId = item._id || item.id;
+                const a = item.sender?._id || item.sender;
+                const b = item.receiver?._id || item.receiver;
+                return ![itemId, a, b].some((value) => String(value) === String(id));
+            }));
+            setSelectedPerson(null);
+            showToast("User blocked successfully.", { title: "Blocked", type: "success" });
+        } catch (error) {
+            showToast(error?.response?.data?.message || "Could not block user", { title: "Block failed", type: "error" });
+        } finally {
+            setActionId(null);
+        }
+    };
+
+    const handleUnblockUser = async (id) => {
+        try {
+            setActionId(id);
+            await unblockUser(id);
+            window.dispatchEvent(new CustomEvent("talkverse:blocklist-updated", {
+                detail: { userId: id, action: "unblock" },
+            }));
+            setBlockedIds((previous) => {
+                const next = new Set(previous);
+                next.delete(String(id));
+                return next;
+            });
+            setSelectedPerson(null);
+            showToast("User unblocked successfully.", { title: "Unblocked", type: "success" });
+        } catch (error) {
+            showToast(error?.response?.data?.message || "Could not unblock user", { title: "Unblock failed", type: "error" });
         } finally {
             setActionId(null);
         }
@@ -634,6 +734,7 @@ export default function SearchPage({ onBack, onOpenChat }) {
                             const isFriend = connectionState.status === "friend";
                             const requestSent = connectionState.status === "pending_sent";
                             const requestReceived = connectionState.status === "pending_received";
+                            const isBlocked = blockedIds.has(String(person.id));
 
                             return (
                                 <div
@@ -692,7 +793,19 @@ export default function SearchPage({ onBack, onOpenChat }) {
                                         </span>
                                     </button>
 
-                                    {isFriend ? (
+                                    {isBlocked ? (
+                                        <span
+                                            className="flex shrink-0 cursor-not-allowed items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-semibold"
+                                            style={{
+                                                background: "var(--surface-hover)",
+                                                color: "var(--text-faint)",
+                                                border: "1px solid var(--border)",
+                                            }}
+                                            aria-disabled="true"
+                                        >
+                                            Blocked
+                                        </span>
+                                    ) : isFriend ? (
                                         <span
                                             className="flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1.5 text-[11px] font-medium"
                                             style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
@@ -755,6 +868,9 @@ export default function SearchPage({ onBack, onOpenChat }) {
                         handleCancelRequest(requestId, selectedPerson.id);
                         setSelectedPerson(null);
                     }}
+                    onBlock={handleBlockUser}
+                    blocked={blockedIds.has(String(selectedPerson.id))}
+                    onUnblock={handleUnblockUser}
                 />
             )}
         </div>

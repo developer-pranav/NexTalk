@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Check, UserRound, X, UserPlus } from "lucide-react";
 import Avatar from "./Avatar";
 import { useToast } from "../context/ToastContext";
-import { getFriendRequests, acceptFriendRequest, rejectFriendRequest } from "../api/friends.js";
+import { getFriendRequests, acceptFriendRequest, rejectFriendRequest, blockUser } from "../api/friends.js";
 
-function RequestProfilePopup({ request, onClose, onAccept, onDecline, busy }) {
+function RequestProfilePopup({ request, onClose, onAccept, onDecline, onBlock, busy }) {
     const sender = request.sender || request.user || request;
     const name = sender.fullname || sender.name || sender.username || "User";
     const username = sender.username || "";
@@ -55,6 +55,7 @@ function RequestProfilePopup({ request, onClose, onAccept, onDecline, busy }) {
                     <div className="mt-4 rounded-[18px] px-4 py-3" style={{ background: "var(--accent-soft)", border: "1px solid var(--border)" }}>
                         <p className="text-[12px] leading-5" style={{ color: "var(--text-muted)" }}>This person wants to connect with you.</p>
                     </div>
+                    <button type="button" disabled={busy} onClick={onBlock} className="mt-3 flex w-full items-center justify-center rounded-[18px] px-4 py-3 text-[13px] font-semibold disabled:opacity-60" style={{ background: "var(--surface-hover)", color: "var(--danger)", border: "1px solid var(--border)" }}>Block user</button>
                     <div className="mt-3 grid grid-cols-2 gap-2.5">
                         <button type="button" disabled={busy} onClick={onDecline} className="flex items-center justify-center gap-2 rounded-[18px] px-4 py-3 text-[13px] font-semibold disabled:opacity-60" style={{ background: "var(--surface-hover)", color: "var(--text-muted)", border: "1px solid var(--border)" }}><X size={16} /> Decline</button>
                         <button type="button" disabled={busy} onClick={onAccept} className="flex items-center justify-center gap-2 rounded-[18px] px-4 py-3 text-[13px] font-semibold disabled:opacity-60" style={{ background: "var(--accent)", color: "#fff" }}><Check size={16} /> Accept</button>
@@ -88,13 +89,32 @@ export default function RequestsPage({ onBack }) {
 
     useEffect(() => { loadRequests(); }, []);
 
+    const handleBlock = async (request) => {
+        const sender = request.sender || request.user || request;
+        const userId = sender._id || sender.id;
+        if (!userId) return;
+        try {
+            setBusyId(request._id || request.id);
+            await blockUser(userId);
+            setRequests((previous) => previous.filter((item) => (item._id || item.id) !== (request._id || request.id)));
+            setSelectedRequest(null);
+            showToast("User blocked successfully", { type: "success" });
+        } catch (error) {
+            showToast(error?.response?.data?.message || "Could not block user", { type: "error" });
+        } finally { setBusyId(null); }
+    };
+
     const handleAction = async (request, action) => {
         const requestId = request._id || request.id;
         if (!requestId) return;
         try {
             setBusyId(requestId);
-            if (action === "accept") await acceptFriendRequest(requestId);
-            else await rejectFriendRequest(requestId);
+            if (action === "accept") {
+                await acceptFriendRequest(requestId);
+                window.dispatchEvent(new Event("talkverse:conversations-updated"));
+            } else {
+                await rejectFriendRequest(requestId);
+            }
             setRequests((prev) => prev.filter((item) => (item._id || item.id) !== requestId));
             setSelectedRequest(null);
             showToast(action === "accept" ? "Friend request accepted" : "Friend request declined", { type: "success" });
@@ -141,7 +161,8 @@ export default function RequestsPage({ onBack }) {
                 )}
             </div>
 
-            {selectedRequest && <RequestProfilePopup request={selectedRequest} busy={busyId === (selectedRequest._id || selectedRequest.id)} onClose={() => setSelectedRequest(null)} onAccept={() => handleAction(selectedRequest, "accept")} onDecline={() => handleAction(selectedRequest, "reject")} />}
+            {selectedRequest && <RequestProfilePopup request={selectedRequest} busy={busyId === (selectedRequest._id || selectedRequest.id)} onClose={() => setSelectedRequest(null)} onAccept={() => handleAction(selectedRequest, "accept")} onDecline={() => handleAction(selectedRequest, "reject")}
+                    onBlock={() => handleBlock(selectedRequest)} />}
         </div>
     );
 }

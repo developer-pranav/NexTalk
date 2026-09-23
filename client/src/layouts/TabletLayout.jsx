@@ -3,6 +3,7 @@ import IconRail from "../components/IconRail";
 import ChatListPanel from "../components/ChatListPanel";
 import ChatWindow from "../components/ChatWindow";
 import ProfilePopup from "../components/ProfilePopup";
+import ProfilePage from "../components/ProfilePage";
 import NewGroupPopup from "../components/NewGroupPopup";
 import Toast from "../components/Toast";
 import SearchPage from "../components/SearchPage";
@@ -16,7 +17,7 @@ export default function TabletLayout() {
     const [newChatOpen, setNewChatOpen] = useState(false);
     const [toastMsg, setToastMsg] = useState("");
     const pathname = usePathname();
-    const section = pathname === "/search" ? "search" : pathname === "/requests" ? "requests" : "chats";
+    const section = pathname === "/search" ? "search" : pathname === "/requests" ? "requests" : pathname === "/profile" ? "profile" : "chats";
     const activeContact = contacts.find((c) => c.id === activeChatId);
 
     useEffect(() => {
@@ -27,10 +28,14 @@ export default function TabletLayout() {
 
     return (
         <div className="flex h-full w-full" style={{ background: "var(--bg)" }}>
-            <IconRail active={section} onChangeTab={(key) => navigate(key === "search" ? "/search" : key === "requests" ? "/requests" : "/")} onOpenProfile={() => setProfileOpen(true)} />
+            <IconRail active={section} onChangeTab={(key) => navigate(key === "search" ? "/search" : key === "requests" ? "/requests" : "/")} onOpenProfile={() => navigate("/profile")} />
 
             <div className="relative min-w-0 flex-1 overflow-hidden">
-                {section === "chats" ? (
+                {section === "profile" ? (
+                    <div className="absolute inset-3 overflow-hidden rounded-3xl" style={{ background: "var(--surface)", boxShadow: "var(--shadow-md)", border: "1px solid var(--border)" }}>
+                        <ProfilePage onBack={() => navigate("/")} />
+                    </div>
+                ) : section === "chats" ? (
                     <>
                         <div className="absolute inset-0">
                             <ChatListPanel activeChatId={activeChatId} onSelect={openChat} onNewChat={() => setNewChatOpen(true)} />

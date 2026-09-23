@@ -81,7 +81,9 @@ export function useRubberband(scrollRef, contentRef) {
                 const pull = y - state.edgeY;
 
                 if (pull > 0) {
-                    e.preventDefault();
+                    if (e.cancelable) {
+                        e.preventDefault();
+                    }
 
                     setOffset(
                         rubberband(pull, MAX_PULL),
@@ -96,7 +98,9 @@ export function useRubberband(scrollRef, contentRef) {
                 const pull = state.edgeY - y;
 
                 if (pull > 0) {
-                    e.preventDefault();
+                    if (e.cancelable) {
+                        e.preventDefault();
+                    }
 
                     setOffset(
                         -rubberband(pull, MAX_PULL),
