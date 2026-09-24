@@ -79,7 +79,7 @@ function adaptConversation(conversation, myUserId) {
     }
 
     const other = (conversation.members || []).find(
-        (m) => (m._id || m) !== myUserId
+        (m) => String(m._id || m) !== String(myUserId)
     ) || {};
     const name = other.fullname || other.username || "Unknown";
 
@@ -104,7 +104,7 @@ function adaptConversation(conversation, myUserId) {
 // the existing MessageList / MessageBubble components already render.
 function adaptMessage(message, myUserId) {
     const senderId = message.sender?._id || message.sender;
-    const isMe = senderId === myUserId;
+    const isMe = String(senderId) === String(myUserId);
 
     let text = message.content || "";
     if (message.deleted) {
@@ -112,9 +112,9 @@ function adaptMessage(message, myUserId) {
     } else if (message.type && message.type !== "text" && message.media) {
         const label =
             message.type === "image" ? "Photo" :
-            message.type === "video" ? "Video" :
-            message.type === "audio" ? "Audio" :
-            message.media.fileName || "File";
+                message.type === "video" ? "Video" :
+                    message.type === "audio" ? "Audio" :
+                        message.media.fileName || "File";
         text = `📎 ${label}`;
     }
 
@@ -123,11 +123,29 @@ function adaptMessage(message, myUserId) {
         from: isMe ? "me" : "them",
         text,
         time: formatTime(message.createdAt),
+        createdAt: message.createdAt,
         deleted: Boolean(message.deleted),
         edited: Boolean(message.isEdited),
+        forwarded: Boolean(message.forwarded),
         type: message.type || "text",
         media: message.media || null,
     };
+
+    if (message.replyTo) {
+        const reply = message.replyTo;
+        const replySenderId = reply.sender?._id || reply.sender;
+        const replyText = reply.deleted
+            ? "This message was deleted"
+            : (reply.content || mediaLabel(reply) || "Message");
+
+        adapted.replyTo = {
+            id: reply._id,
+            from: String(replySenderId) === String(myUserId) ? "me" : "them",
+            text: replyText,
+            type: reply.type || "text",
+            media: reply.media || null,
+        };
+    }
 
     if (!isMe && message.sender?.fullname) {
         adapted.author = message.sender.fullname;
@@ -231,10 +249,38 @@ export function ChatProvider({ children }) {
 
             setMessagesByChat((prev) => {
                 const current = prev[chatId] || [];
-                if (current.some((message) => String(message.id) === String(adapted.id))) {
+
+                // Replace our optimistic clock message with the real DB message.
+                if (rawMessage?.clientMessageId) {
+                    const tempIndex = current.findIndex(
+                        (message) =>
+                            String(message.id) === String(rawMessage.clientMessageId)
+                    );
+
+                    if (tempIndex !== -1) {
+                        const updated = [...current];
+                        updated[tempIndex] = adapted;
+
+                        return {
+                            ...prev,
+                            [chatId]: updated,
+                        };
+                    }
+                }
+
+                // Existing duplicate protection
+                if (
+                    current.some(
+                        (message) => String(message.id) === String(adapted.id)
+                    )
+                ) {
                     return prev;
                 }
-                return { ...prev, [chatId]: [...current, adapted] };
+
+                return {
+                    ...prev,
+                    [chatId]: [...current, adapted],
+                };
             });
 
             // Only incoming messages create unread state. Your own message
@@ -711,25 +757,70 @@ export function ChatProvider({ children }) {
         setUnreadCounts((prev) => ({ ...prev, [chatId]: 0 }));
     }, []);
 
-    const sendMessage = useCallback(async (chatId, text, replyTo = null) => {
-        const trimmed = text.trim();
-        if (!trimmed) return;
+    const sendMessage = useCallback((chatId, text, replyTo = null) => {
+        const trimmed = String(text || "").trim();
+        if (!trimmed) return false;
 
         const socket = socketRef.current;
+
         if (!socket?.connected) {
             setMessagesError((prev) => ({
                 ...prev,
                 [chatId]: "Real-time connection is not available. Please try again.",
             }));
-            return;
+            return false;
         }
 
-        // The Socket.IO server saves to MongoDB first and emits newMessage
-        // only after the save succeeds. Do not append optimistically here.
+        const clientMessageId = `temp-${Date.now()}-${Math.random()
+            .toString(36)
+            .slice(2, 8)}`;
+
+        // Show the message immediately. It stays as a clock/sending state
+        // until the server echoes the persisted message back through Socket.IO.
+        const optimisticMessage = {
+            id: clientMessageId,
+            clientMessageId,
+            from: "me",
+            text: trimmed,
+            type: "text",
+            time: formatNow(),
+            createdAt: new Date().toISOString(),
+            status: "sending",
+            deleted: false,
+            edited: false,
+            forwarded: false,
+            isGroup: false,
+            deliveredCount: 0,
+            seenCount: 0,
+            ...(replyTo?.id
+                ? {
+                    replyTo: {
+                        id: replyTo.id,
+                        from: replyTo.from,
+                        text: replyTo.text,
+                        type: replyTo.type,
+                        media: replyTo.media || null,
+                    },
+                }
+                : {}),
+        };
+
+        setMessagesByChat((prev) => ({
+            ...prev,
+            [chatId]: [...(prev[chatId] || []), optimisticMessage],
+        }));
+
+        // The server should return the persisted message with the same
+        // clientMessageId. handleNewMessage() then replaces this clock
+        // message with the real message and its sent/delivered/read status.
         socket.emit("sendMessage", {
             conversationId: chatId,
             content: trimmed,
+            clientMessageId,
+            ...(replyTo?.id ? { replyTo: replyTo.id } : {}),
         });
+
+        return true;
     }, []);
 
     const sendMediaMessage = useCallback(async (chatId, file) => {
@@ -745,19 +836,29 @@ export function ChatProvider({ children }) {
             const savedMessage = response?.data;
             if (!savedMessage?._id) throw new Error("Media message was not saved");
 
-            // REST saves the file/message. Socket.IO broadcasts the persisted
-            // message to every participant so the recipient gets it realtime.
+            // The REST endpoint is the source of truth for the uploaded file.
+            // Add the persisted message locally immediately so the sender never
+            // depends on a Socket.IO acknowledgement to see their own voice/media.
+            const adapted = adaptMessage(
+                { ...savedMessage, conversation: chatId },
+                currentUserIdRef.current
+            );
+
+            setMessagesByChat((prev) => {
+                const current = prev[chatId] || [];
+                if (current.some((message) => String(message.id) === String(adapted.id))) {
+                    return prev;
+                }
+                return { ...prev, [chatId]: [...current, adapted] };
+            });
+
+            // Broadcast only to the other participants. The server deliberately
+            // uses socket.to(room), so the sender does not receive a duplicate.
             if (socketRef.current?.connected) {
                 socketRef.current.emit("broadcastMediaMessage", {
                     conversationId: chatId,
                     messageId: savedMessage._id,
                 });
-            } else {
-                const adapted = adaptMessage(savedMessage, currentUserIdRef.current);
-                setMessagesByChat((prev) => ({
-                    ...prev,
-                    [chatId]: [...(prev[chatId] || []), adapted],
-                }));
             }
 
             return true;
@@ -771,20 +872,21 @@ export function ChatProvider({ children }) {
     }, []);
 
     const forwardMessage = useCallback((targetChatId, message) => {
-        if (!message) return;
-        const forwarded = {
-            id: nextId(),
-            from: "me",
-            text: message.text,
-            time: formatNow(),
-            status: "sent",
-            forwarded: true,
-            ...(message.replyTo ? { replyTo: message.replyTo } : {}),
-        };
-        setMessagesByChat((prev) => ({
-            ...prev,
-            [targetChatId]: [...(prev[targetChatId] || []), forwarded],
-        }));
+        if (!message?.id || !targetChatId) return false;
+        const socket = socketRef.current;
+        if (!socket?.connected) {
+            setMessagesError((prev) => ({
+                ...prev,
+                [targetChatId]: "Real-time connection is not available. Please try again.",
+            }));
+            return false;
+        }
+
+        socket.emit("forwardMessage", {
+            targetConversationId: targetChatId,
+            messageId: message.id,
+        });
+        return true;
     }, []);
 
     const editMessage = useCallback((chatId, messageId, text) => {

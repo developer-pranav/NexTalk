@@ -10,6 +10,42 @@ import { useRubberband } from "../hooks/useRubberband";
 
 const REFRESH_TRIGGER_PX = 40;
 
+const getDateKey = (dateValue) => {
+    if (!dateValue) return null;
+
+    const date = new Date(dateValue);
+
+    if (Number.isNaN(date.getTime())) return null;
+
+    return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+};
+
+const getDateLabel = (dateValue) => {
+    const date = new Date(dateValue);
+    const now = new Date();
+
+    const todayKey = getDateKey(now);
+    const yesterday = new Date(now);
+    yesterday.setDate(now.getDate() - 1);
+
+    const yesterdayKey = getDateKey(yesterday);
+    const messageKey = getDateKey(date);
+
+    if (messageKey === todayKey) {
+        return "Today";
+    }
+
+    if (messageKey === yesterdayKey) {
+        return "Yesterday";
+    }
+
+    return date.toLocaleDateString([], {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+    });
+};
+
 export default function MessageList({ chatId, messages, isGroup, onNotify, onReply, onEdit, searchQuery = "", searchIndex = 0, onSearchMatches, searchOpen = false }) {
     const { loadOlderMessages, hasMoreOlder, refreshingChatId, typingChatId, deleteMessage, contacts, forwardMessage } = useChat();
     const scrollRef = useRef(null);
@@ -34,9 +70,9 @@ export default function MessageList({ chatId, messages, isGroup, onNotify, onRep
     const normalizedSearch = searchQuery.trim().toLowerCase();
     const searchMatches = normalizedSearch
         ? messages.reduce((acc, message, index) => {
-              if (message.text?.toLowerCase().includes(normalizedSearch)) acc.push(index);
-              return acc;
-          }, [])
+            if (message.text?.toLowerCase().includes(normalizedSearch)) acc.push(index);
+            return acc;
+        }, [])
         : [];
 
     useEffect(() => {
@@ -169,22 +205,65 @@ export default function MessageList({ chatId, messages, isGroup, onNotify, onRep
                 </div>
 
                 <div className="flex flex-col gap-1 max-w-5xl mx-auto">
-                    {messages.map((m, i) => (
-                        <div data-message-index={i} data-message-id={m.id} key={`${m.id}-wrap`}>
-                        <MessageBubble
-                            key={m.id}
-                            message={m}
-                            animate={i === messages.length - 1}
-                            showAuthor={isGroup && m.from === "them"}
-                            onMenu={openMenuFor}
-                            onReplyNavigate={scrollToMessage}
-                            selected={selectedIds.includes(m.id)}
-                            selectMode={selectedIds.length > 0}
-                            onToggleSelect={toggleSelected}
-                            searchActive={searchMatches.includes(i) && searchMatches[searchIndex] === i}
-                        />
-                        </div>
-                    ))}
+                    {messages.map((m, i) => {
+                        const messageDate = m.createdAt;
+
+                        const currentDateKey = getDateKey(messageDate);
+
+                        const previousMessage = messages[i - 1];
+                        const previousDateKey = previousMessage
+                            ? getDateKey(previousMessage.createdAt)
+                            : null;
+
+                        const showDateSeparator =
+                            currentDateKey && currentDateKey !== previousDateKey;
+
+                        const messageKey = m.clientMessageId || m.id;
+
+                        return (
+                            <div key={`${messageKey}-container`}>
+                                {showDateSeparator && (
+                                    <div className="flex justify-center py-3">
+                                        <div
+                                            className="rounded-full px-3 py-1 text-[11px] font-medium"
+                                            style={{
+                                                background: "var(--surface)",
+                                                color: "var(--text-muted)",
+                                                border: "1px solid var(--border)",
+                                                boxShadow: "var(--shadow-sm)",
+                                            }}
+                                        >
+                                            {getDateLabel(messageDate)}
+                                        </div>
+                                    </div>
+                                )}
+
+                                <div
+                                    data-message-index={i}
+                                    data-message-id={m.id}
+                                >
+                                    <MessageBubble
+                                        key={messageKey}
+                                        message={m}
+                                        animate={
+                                            i === messages.length - 1 &&
+                                            m.status === "sending"
+                                        }
+                                        showAuthor={isGroup && m.from === "them"}
+                                        onMenu={openMenuFor}
+                                        onReplyNavigate={scrollToMessage}
+                                        selected={selectedIds.includes(m.id)}
+                                        selectMode={selectedIds.length > 0}
+                                        onToggleSelect={toggleSelected}
+                                        searchActive={
+                                            searchMatches.includes(i) &&
+                                            searchMatches[searchIndex] === i
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        );
+                    })}
                     {isTyping && <TypingIndicator />}
                 </div>
             </div>
@@ -194,14 +273,51 @@ export default function MessageList({ chatId, messages, isGroup, onNotify, onRep
                     x={menu.x}
                     y={menu.y}
                     onClose={closeMenu}
-                    onReply={() => { handleReply(menu.message); closeMenu(); }}
+
+                    onReply={() => {
+                        handleReply(menu.message);
+                        closeMenu();
+                    }}
+
                     onCopy={() => handleCopy(menu.message)}
-                    onForward={() => { handleForward(menu.message); closeMenu(); }}
+
+                    onForward={() => {
+                        handleForward(menu.message);
+                        closeMenu();
+                    }}
+
                     onSelect={() => handleSelect(menu.message)}
-                    canEdit={menu.message.from === "me" && !menu.message.deleted}
-                    onEdit={() => { onEdit?.(menu.message); closeMenu(); }}
-                    canDelete={menu.message.from === "me" && !menu.message.deleted}
-                    onDelete={() => { handleDelete(menu.message); closeMenu(); }}
+
+                    /*
+                     * Copy + Edit are text-message actions only.
+                     * Media messages: image/video/audio/voice/file
+                     * will not show these options.
+                     */
+                    canCopy={
+                        !menu.message.deleted &&
+                        (!menu.message.type || menu.message.type === "text")
+                    }
+
+                    canEdit={
+                        menu.message.from === "me" &&
+                        !menu.message.deleted &&
+                        (!menu.message.type || menu.message.type === "text")
+                    }
+
+                    onEdit={() => {
+                        onEdit?.(menu.message);
+                        closeMenu();
+                    }}
+
+                    canDelete={
+                        menu.message.from === "me" &&
+                        !menu.message.deleted
+                    }
+
+                    onDelete={() => {
+                        handleDelete(menu.message);
+                        closeMenu();
+                    }}
                 />
             )}
 
