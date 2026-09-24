@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import {
     Check,
     CheckCheck,
+    Clock,
     UserRound,
     Play,
     Pause,
@@ -145,7 +146,7 @@ function useMediaElement(ref, { exclusive = false, resetOnEnd = false } = {}) {
     const toggle = useCallback(() => {
         const el = ref.current;
         if (!el) return;
-        if (el.paused || el.ended) el.play().catch(() => {});
+        if (el.paused || el.ended) el.play().catch(() => { });
         else el.pause();
     }, [ref]);
 
@@ -380,16 +381,16 @@ function VideoPlayer({ src }) {
 
     // Opening a video is a user gesture, so start playing right away.
     useEffect(() => {
-        videoRef.current?.play().catch(() => {});
+        videoRef.current?.play().catch(() => { });
     }, []);
 
     const toggleFullscreen = useCallback(() => {
         const wrap = wrapRef.current;
         const video = videoRef.current;
         if (document.fullscreenElement) {
-            document.exitFullscreen?.()?.catch?.(() => {});
+            document.exitFullscreen?.()?.catch?.(() => { });
         } else if (wrap?.requestFullscreen) {
-            wrap.requestFullscreen().catch(() => {});
+            wrap.requestFullscreen().catch(() => { });
         } else if (video?.webkitEnterFullscreen) {
             video.webkitEnterFullscreen(); // iPhone Safari only supports fullscreen on the <video> itself
         }
@@ -401,7 +402,7 @@ function VideoPlayer({ src }) {
         document.addEventListener("fullscreenchange", onChange);
         return () => {
             document.removeEventListener("fullscreenchange", onChange);
-            if (document.fullscreenElement === wrap) document.exitFullscreen?.()?.catch?.(() => {});
+            if (document.fullscreenElement === wrap) document.exitFullscreen?.()?.catch?.(() => { });
         };
     }, []);
 
@@ -678,6 +679,10 @@ function MediaViewer({ media, type, origin, onClose }) {
 }
 
 function StatusIcon({ status, isGroup, seenCount = 0 }) {
+    if (status === "sending") {
+        return <Clock size={13} strokeWidth={2.3} style={{ opacity: 0.65 }} />;
+    }
+
     if (status === "read") {
         if (isGroup) {
             return (
@@ -783,8 +788,54 @@ export default function MessageBubble({ message, showAuthor, animate, onMenu, on
 
     return (
         <div
-            className={`flex ${isMe ? "justify-end" : "justify-start"} ${animate ? "anim-bubble-in" : ""}`}
+            className={`flex flex-col ${isMe ? "items-end" : "items-start"} ${animate ? "anim-bubble-in" : ""}`}
         >
+            {message.replyTo && !message.deleted && (
+                <div
+                    className={`tv-reply ${isMe ? "tv-reply-sent" : "tv-reply-received"}`}
+                    onClick={handleReplyClick}
+                    role={message.replyTo?.id ? "button" : undefined}
+                    tabIndex={message.replyTo?.id ? 0 : undefined}
+                >
+                    <div className="tv-reply-label">
+                        {isMe ? "You replied" : "Replied to you"}
+                    </div>
+
+                    <div
+                        className={`tv-reply-quote ${message.replyTo?.id ? "tv-reply-clickable" : ""}`}
+                    >
+                        <div className="tv-reply-line" aria-hidden="true" />
+
+                        <div className="tv-reply-body">
+                            <div className="tv-reply-text">
+                                {message.replyTo.type === "image"
+                                    ? "Photo"
+                                    : message.replyTo.type === "video"
+                                        ? "Video"
+                                        : message.replyTo.type === "audio"
+                                            ? "Voice message"
+                                            : message.replyTo.text || "Message"}
+                            </div>
+                        </div>
+
+                        {message.replyTo.media?.url && (
+                            <div className="tv-reply-media">
+                                {message.replyTo.type === "image" ? (
+                                    <img
+                                        src={message.replyTo.media.url}
+                                        alt=""
+                                    />
+                                ) : (
+                                    <span aria-hidden="true">
+                                        {message.replyTo.type === "video" ? "▶" : "♪"}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
             <div
                 onClick={handleClick}
                 onContextMenu={handleContextMenu}
@@ -802,53 +853,6 @@ export default function MessageBubble({ message, showAuthor, animate, onMenu, on
             >
                 {message.forwarded && !message.deleted && (
                     <div className="mb-1 text-[11px] font-medium" style={{ color: "var(--accent)" }}>Forwarded</div>
-                )}
-                {message.replyTo && !message.deleted && (
-                    <div
-                        onClick={handleReplyClick}
-                        role={message.replyTo?.id ? "button" : undefined}
-                        tabIndex={message.replyTo?.id ? 0 : undefined}
-                        className={`mb-2 flex min-w-0 items-stretch overflow-hidden rounded-[10px] border ${message.replyTo?.id ? "cursor-pointer transition-colors hover:brightness-110" : ""}`}
-                        style={{
-                            background: isMe
-                                ? "color-mix(in srgb, var(--accent-text) 10%, transparent)"
-                                : "var(--surface-2)",
-                            borderColor: isMe
-                                ? "color-mix(in srgb, var(--accent-text) 16%, transparent)"
-                                : "var(--border)",
-                        }}
-                    >
-                        <div
-                            className="w-0.5 shrink-0"
-                            style={{ background: "var(--accent)" }}
-                        />
-
-                        <div className="min-w-0 flex-1 px-2.5 py-1.5">
-                            <p
-                                className="mb-0.5 text-[10.5px] font-semibold leading-tight"
-                                style={{
-                                    color: isMe
-                                        ? "var(--bubble-sent-text)"
-                                        : "var(--accent)",
-                                    opacity: isMe ? 0.9 : 1,
-                                }}
-                            >
-                                {message.replyTo.from === "me" ? "You" : "Replying to message"}
-                            </p>
-
-                            <p
-                                className="truncate text-[11.5px] leading-snug"
-                                style={{
-                                    color: isMe
-                                        ? "var(--bubble-sent-text)"
-                                        : "var(--text-muted)",
-                                    opacity: isMe ? 0.82 : 1,
-                                }}
-                            >
-                                {message.replyTo.text}
-                            </p>
-                        </div>
-                    </div>
                 )}
                 {showAuthor && message.author && !message.deleted && (
                     <div className="text-[12px] font-medium mb-0.5" style={{ color: "var(--accent)" }}>

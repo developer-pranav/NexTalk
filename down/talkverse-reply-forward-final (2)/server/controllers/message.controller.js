@@ -54,6 +54,17 @@ const getMessages = asyncHandler(async (req, res) => {
             "sender",
             "username fullname avatar"
         )
+        .populate(
+            "conversation",
+            "type members"
+        ).populate({
+            path: "replyTo",
+            select: "content type media sender deleted isEdited",
+            populate: {
+                path: "sender",
+                select: "username fullname avatar"
+            }
+        })
         .sort({
             createdAt: -1
         })
@@ -201,26 +212,31 @@ const deleteMessage = asyncHandler(async (req, res) => {
         );
     }
 
-    await Message.findByIdAndDelete(messageId);
+    // Soft-delete so the deleted state is consistent for every participant
+    // and a later message fetch cannot resurrect the original content.
+    await Message.findByIdAndUpdate(messageId, {
+        $set: {
+            deleted: true,
+            content: "",
+            isEdited: false,
+        },
+        $unset: {
+            attachments: "",
+            replyTo: "",
+        },
+    });
 
-    // If deleted message was lastMessage,
-    // find the previous message
-    const conversation = await Conversation.findById(
-        message.conversation
-    );
+    // If deleted message was lastMessage, move the preview to the latest
+    // non-deleted message.
+    const conversation = await Conversation.findById(message.conversation);
 
     if (conversation?.lastMessage?.toString() === messageId) {
-
         const previousMessage = await Message.findOne({
-            conversation: message.conversation
-        })
-            .sort({
-                createdAt: -1
-            });
+            conversation: message.conversation,
+            deleted: { $ne: true },
+        }).sort({ createdAt: -1 });
 
-        conversation.lastMessage =
-            previousMessage?._id || null;
-
+        conversation.lastMessage = previousMessage?._id || null;
         await conversation.save();
     }
 
@@ -318,7 +334,9 @@ const sendMediaMessage = asyncHandler(async (req, res) => {
     } else if (req.file.mimetype.startsWith("audio/")) {
         messageType = "audio";
     } else {
-        messageType = "file";
+        // Generic file uploads are intentionally disabled for now.
+        // Keep the chat media surface limited to images, videos and audio.
+        throw new ApiError(400, "Only images, videos and audio are supported");
     }
 
     const message = await Message.create({

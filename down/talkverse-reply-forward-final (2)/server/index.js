@@ -26,7 +26,10 @@ const io = new Server(httpServer, {
 initializeSocket(io);
 
 connectDB()
-    .then(() => {
+    .then(async () => {
+        // A process restart invalidates all old sockets, so clear stale presence.
+        const { User } = await import("./models/user.model.js");
+        await User.updateMany({ isOnline: true }, { $set: { isOnline: false } });
         httpServer.listen(port, () => {
             console.log(`Server is running on port ${port}`);
         });

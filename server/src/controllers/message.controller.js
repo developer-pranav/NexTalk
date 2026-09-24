@@ -57,7 +57,14 @@ const getMessages = asyncHandler(async (req, res) => {
         .populate(
             "conversation",
             "type members"
-        )
+        ).populate({
+            path: "replyTo",
+            select: "content type media sender deleted isEdited",
+            populate: {
+                path: "sender",
+                select: "username fullname avatar"
+            }
+        })
         .sort({
             createdAt: -1
         })

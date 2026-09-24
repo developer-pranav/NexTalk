@@ -19,13 +19,25 @@ const messageSchema = new mongoose.Schema(
         content: {
             type: String
         },
-        attachments: {
-            type: String,
+        media: {
+            url: { type: String },
+            publicId: { type: String },
+            fileName: { type: String },
+            fileSize: { type: Number },
+            mimeType: { type: String },
         },
         replyTo: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Message"
         },
+        forwarded: {
+            type: Boolean,
+            default: false
+        },
+        deliveredBy: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User"
+        }],
         seenBy: [{
             type: mongoose.Schema.Types.ObjectId,
             ref: "User"
@@ -33,6 +45,9 @@ const messageSchema = new mongoose.Schema(
         isEdited: {
             type: Boolean,
             default: false
+        },
+        editedAt: {
+            type: Date
         },
         deleted: {
             type: Boolean,

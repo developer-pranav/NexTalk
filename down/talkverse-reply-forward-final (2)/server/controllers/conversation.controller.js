@@ -4,6 +4,7 @@ import { ApiResponse } from "../utils/apiRes.js";
 import { Conversation } from "../models/conversation.model.js"
 import { Connection } from "../models/connection.model.js";
 import { User } from "../models/user.model.js";
+import { Message } from "../models/message.model.js";
 
 const createDirectConversation = asyncHandler(async (req, res) => {
     const { userId } = req.params;
@@ -134,20 +135,40 @@ const getMyConversations = asyncHandler(async (req, res) => {
     })
         .populate(
             "members",
-            "username fullname avatar"
+            "username fullname avatar isOnline"
         )
-        .populate(
-            "lastMessage",
-            "sender type content media createdAt"
-        )
+        .populate({
+            path: "lastMessage",
+            select: "sender type content media createdAt",
+            populate: {
+                path: "sender",
+                select: "_id",
+            },
+        })
         .sort({
             updatedAt: -1
         });
 
+    // Persisted unread counts allow a user who was offline (or had the
+    // conversation closed) to see pending messages immediately after login.
+    const conversationsWithUnread = await Promise.all(
+        conversations.map(async (conversation) => {
+            const unreadCount = await Message.countDocuments({
+                conversation: conversation._id,
+                sender: { $ne: req.user._id },
+                seenBy: { $ne: req.user._id },
+            });
+
+            const data = conversation.toObject();
+            data.unreadCount = unreadCount;
+            return data;
+        })
+    );
+
     return res.status(200).json(
         new ApiResponse(
             200,
-            conversations,
+            conversationsWithUnread,
             "Conversations fetched successfully"
         )
     );

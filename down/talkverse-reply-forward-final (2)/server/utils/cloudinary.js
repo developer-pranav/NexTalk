@@ -22,10 +22,20 @@ const uploadOnCloudinary = async (localFilePath, folder) => {
 
         const resourceType = rawExtensions.has(extension) ? "raw" : "auto";
 
-        const response = await cloudinary.uploader.upload(localFilePath, {
-            folder: folder || "TalkVerse/Avatar",
-            resource_type: resourceType,
-        });
+        // Cloudinary's raw uploader is the most reliable path for arbitrary
+        // documents such as JSON. `upload_large` also preserves the raw
+        // resource type automatically and avoids format-detection issues.
+        const response = resourceType === "raw"
+            ? await cloudinary.uploader.upload_large(localFilePath, {
+                folder: folder || "TalkVerse/Avatar",
+                resource_type: "raw",
+                use_filename: true,
+                unique_filename: true,
+            })
+            : await cloudinary.uploader.upload(localFilePath, {
+                folder: folder || "TalkVerse/Avatar",
+                resource_type: resourceType,
+            });
 
         console.log("Cloudinary upload successful:", response.secure_url);
 

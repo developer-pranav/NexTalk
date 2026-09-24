@@ -140,10 +140,7 @@ const initializeSocket = (io) => {
         // Send Message
         socket.on(
             "sendMessage",
-            async (
-                { conversationId, content, replyTo = null, clientMessageId },
-                ack
-            ) => {
+            async ({ conversationId, content, replyTo = null }) => {
 
                 try {
 
@@ -267,32 +264,16 @@ const initializeSocket = (io) => {
 
 
                     // Send to conversation room
-                    const socketMessage = populatedMessage.toObject();
-
-                    if (clientMessageId) {
-                        socketMessage.clientMessageId = clientMessageId;
-                    }
-
                     io.to(conversationId).emit(
                         "newMessage",
-                        socketMessage
+                        populatedMessage
                     );
-
-                    ack?.({
-                        ok: true,
-                        messageId: populatedMessage._id,
-                    });
 
                 } catch (error) {
 
-                    ack?.({
-                        ok: false,
-                        error: "Message content is required",
-                    });
-
-                    return socket.emit(
+                    socket.emit(
                         "socketError",
-                        "Message content is required"
+                        "Failed to send message"
                     );
 
                 }

@@ -259,6 +259,48 @@ const initializeSocket = (io) => {
         );
 
 
+        // Broadcast a media message that was already persisted by the REST API.
+        // The sender adds the saved message locally; only the other participants
+        // need the realtime event, preventing duplicates in the sender's chat.
+        socket.on(
+            "broadcastMediaMessage",
+            async ({ conversationId, messageId }) => {
+                try {
+                    if (!conversationId || !messageId) {
+                        return socket.emit("socketError", "Media broadcast data is incomplete");
+                    }
+
+                    const conversation = await Conversation.findById(conversationId);
+                    if (!conversation) {
+                        return socket.emit("socketError", "Conversation not found");
+                    }
+
+                    const isMember = conversation.members.some(
+                        (member) => member.toString() === socket.user._id.toString()
+                    );
+
+                    if (!isMember) {
+                        return socket.emit("socketError", "You are not a member of this conversation");
+                    }
+
+                    const message = await Message.findOne({
+                        _id: messageId,
+                        conversation: conversationId,
+                    }).populate("sender", "username fullname avatar");
+
+                    if (!message) {
+                        return socket.emit("socketError", "Media message not found");
+                    }
+
+                    socket.to(conversationId).emit("newMessage", message);
+                } catch (error) {
+                    console.error("Failed to broadcast media message:", error);
+                    socket.emit("socketError", "Failed to broadcast media message");
+                }
+            }
+        );
+
+
         // Typing
         socket.on(
             "typing",

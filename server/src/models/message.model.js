@@ -30,6 +30,10 @@ const messageSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "Message"
         },
+        forwarded: {
+            type: Boolean,
+            default: false
+        },
         deliveredBy: [{
             type: mongoose.Schema.Types.ObjectId,
             ref: "User"

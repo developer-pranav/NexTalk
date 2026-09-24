@@ -1,5 +1,6 @@
 import express from "express";
 import cookieParser from "cookie-parser";
+import { errorHandler } from "./middleware/error.middleware.js";
 import cors from "cors";
 
 const app = express();
@@ -32,3 +33,5 @@ app.use("/api/v1/conversations", conversationRoutes);
 app.use("/api/v1/messages", messageRoutes);
 
 export { app };
+
+app.use(errorHandler);
