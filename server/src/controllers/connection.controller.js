@@ -315,7 +315,7 @@ const blockUser = asyncHandler(async (req, res) => {
         if (
             connection.status === "blocked" &&
             connection.blockedBy?.toString() ===
-                req.user._id.toString()
+            req.user._id.toString()
         ) {
             throw new ApiError(
                 409,
@@ -336,6 +336,15 @@ const blockUser = asyncHandler(async (req, res) => {
         });
     }
 
+    const io = req.app.get("io");
+
+    if (io) {
+        io.to(`user:${userId}`).emit("blockStatusChanged", {
+            blockerId: String(req.user._id),
+            blocked: true,
+        });
+    }
+
     return res.status(200).json(
         new ApiResponse(
             200,
@@ -351,19 +360,19 @@ const getBlockedUsers = asyncHandler(async (req, res) => {
         status: "blocked",
         blockedBy: req.user._id,
     }).populate(
-        "receiver sender",
+        "sender receiver",
         "username fullname avatar bio"
     );
 
     const blockedUsers = blockedConnections
         .map((connection) => {
+            const senderId = connection.sender?._id;
             const blockedUser =
-                String(connection.sender._id) ===
-                String(req.user._id)
+                String(senderId) === String(req.user._id)
                     ? connection.receiver
                     : connection.sender;
 
-            if (!blockedUser) {
+            if (!blockedUser?._id) {
                 return null;
             }
 
@@ -416,7 +425,19 @@ const unblockUser = asyncHandler(async (req, res) => {
         );
     }
 
-    await Connection.findByIdAndDelete(connection._id);
+    connection.status = "friend";
+    connection.blockedBy = undefined;
+
+    await connection.save();
+
+    const io = req.app.get("io");
+
+    if (io) {
+        io.to(`user:${userId}`).emit("blockStatusChanged", {
+            blockerId: String(req.user._id),
+            blocked: false,
+        });
+    }
 
     return res.status(200).json(
         new ApiResponse(

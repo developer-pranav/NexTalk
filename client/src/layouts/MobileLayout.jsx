@@ -24,7 +24,7 @@ function chatIdFromPath(path) {
 }
 
 export default function MobileLayout() {
-    const { contacts, activeChatId, openChat, closeChat, messagesByChat, unreadCounts, typingChatId, clearChat, toggleBlock, unfriend } = useChat();
+    const { contacts, activeChatId, openChat, closeChat, messagesByChat, unreadCounts, typingChatId, clearChat, toggleBlock, unfriend, pendingRequestsCount } = useChat();
     const [query, setQuery] = useState("");
     const [toastMsg, setToastMsg] = useState("");
     const [contextMenu, setContextMenu] = useState(null);
@@ -135,7 +135,7 @@ export default function MobileLayout() {
             <div className="relative h-full">
                 <SearchPage onBack={backToHome} onOpenChat={openChatFromList} />
                 <div className="absolute inset-x-0 bottom-0 z-20">
-                    <MobileFloatingNav active="search" onChangeTab={(key) => key === "chats" ? backToHome() : key === "requests" ? openRequests() : openSearch()} onOpenProfile={openProfile} profileOpen={false} />
+                    <MobileFloatingNav active="search" onChangeTab={(key) => key === "chats" ? backToHome() : key === "requests" ? openRequests() : openSearch()} onOpenProfile={openProfile} profileOpen={false} requestCount={pendingRequestsCount} />
                 </div>
             </div>
         );
@@ -146,7 +146,7 @@ export default function MobileLayout() {
             <div className="relative h-full">
                 <RequestsPage onBack={backToHome} />
                 <div className="absolute inset-x-0 bottom-0 z-20">
-                    <MobileFloatingNav active="requests" onChangeTab={(key) => key === "chats" ? backToHome() : key === "search" ? openSearch() : openRequests()} onOpenProfile={openProfile} profileOpen={false} />
+                    <MobileFloatingNav active="requests" onChangeTab={(key) => key === "chats" ? backToHome() : key === "search" ? openSearch() : openRequests()} onOpenProfile={openProfile} profileOpen={false} requestCount={pendingRequestsCount} />
                 </div>
             </div>
         );

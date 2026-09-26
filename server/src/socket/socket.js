@@ -5,6 +5,37 @@ import { Message } from "../models/message.model.js";
 import { Connection } from "../models/connection.model.js";
 
 
+const onlineSockets = new Map();
+
+function addOnlineSocket(userId, socketId) {
+    const id = String(userId);
+
+    if (!onlineSockets.has(id)) {
+        onlineSockets.set(id, new Set());
+    }
+
+    onlineSockets.get(id).add(socketId);
+
+    return onlineSockets.get(id).size === 1;
+}
+
+function removeOnlineSocket(userId, socketId) {
+    const id = String(userId);
+    const sockets = onlineSockets.get(id);
+
+    if (!sockets) return false;
+
+    sockets.delete(socketId);
+
+    if (sockets.size === 0) {
+        onlineSockets.delete(id);
+        return true;
+    }
+
+    return false;
+}
+
+
 const initializeSocket = (io) => {
 
     // Socket Authentication
@@ -62,13 +93,76 @@ const initializeSocket = (io) => {
     });
 
 
-    io.on("connection", (socket) => {
+    io.on("connection", async (socket) => {
+        const userId = String(socket.user._id);
 
-        console.log(
-            `User connected: ${socket.user.username}`,
-            socket.id
+        socket.join(`user:${userId}`);
+
+        // Register this socket as online
+        const becameOnline = addOnlineSocket(userId, socket.id);
+
+        // Keep database presence in sync
+        await User.findByIdAndUpdate(
+            socket.user._id,
+            {
+                isOnline: true,
+                lastOnline: null,
+            }
         );
 
+        // Send current online users to this client
+        socket.emit("presenceSnapshot", {
+            userIds: Array.from(onlineSockets.keys()),
+        });
+
+        // Tell everyone else that this user came online
+        if (becameOnline) {
+            socket.broadcast.emit("userOnline", {
+                userId: socket.user._id,
+            });
+        }
+
+        // Mark pending messages as delivered when the user comes online.
+        // This does NOT mark them as seen.
+        try {
+            const conversations = await Conversation.find({
+                members: socket.user._id,
+            }).select("_id");
+
+            const conversationIds = conversations.map(
+                (conversation) => conversation._id
+            );
+
+            const pendingMessages = await Message.find({
+                conversation: { $in: conversationIds },
+                sender: { $ne: socket.user._id },
+                deliveredBy: { $ne: socket.user._id },
+            }).select("_id conversation sender deliveredBy");
+
+            for (const message of pendingMessages) {
+                message.deliveredBy.push(socket.user._id);
+                await message.save();
+
+                const senderId = String(message.sender);
+
+                const senderSockets = onlineSockets.get(senderId);
+
+                if (senderSockets) {
+                    for (const senderSocketId of senderSockets) {
+                        io.to(senderSocketId).emit("messageDelivered", {
+                            conversationId: String(message.conversation),
+                            messageId: String(message._id),
+                            userIds: [String(socket.user._id)],
+                        });
+                    }
+                }
+            }
+        } catch (error) {
+            console.error(
+                "Failed to mark pending messages delivered:",
+                error
+            );
+        }
 
         // Join Conversation
         socket.on(
@@ -424,15 +518,14 @@ const initializeSocket = (io) => {
         socket.on(
             "typing",
             (conversationId) => {
-
                 socket.to(conversationId).emit(
                     "userTyping",
                     {
+                        conversationId,
                         userId: socket.user._id,
-                        username: socket.user.username
+                        username: socket.user.username,
                     }
                 );
-
             }
         );
 
@@ -441,29 +534,135 @@ const initializeSocket = (io) => {
         socket.on(
             "stopTyping",
             (conversationId) => {
-
                 socket.to(conversationId).emit(
                     "userStoppedTyping",
                     {
-                        userId: socket.user._id
+                        conversationId,
+                        userId: socket.user._id,
                     }
                 );
-
             }
         );
 
+        // Mark Message Delivered
+        socket.on("markMessageDelivered", async ({ messageId, conversationId }) => {
+            try {
+                if (!messageId || !conversationId) return;
 
-        // Disconnect
-        socket.on("disconnect", () => {
+                const message = await Message.findOne({
+                    _id: messageId,
+                    conversation: conversationId,
+                });
 
-            console.log(
-                `User disconnected: ${socket.user.username}`,
-                socket.id
-            );
+                if (!message) return;
 
+                const conversation = await Conversation.findById(conversationId);
+                if (!conversation) return;
+
+                const isMember = conversation.members.some(
+                    (member) => String(member) === String(socket.user._id)
+                );
+
+                if (!isMember) return;
+
+                const alreadyDelivered = (message.deliveredBy || []).some(
+                    (id) => String(id?._id || id) === String(socket.user._id)
+                );
+
+                if (!alreadyDelivered) {
+                    message.deliveredBy.push(socket.user._id);
+                    await message.save();
+                }
+
+                socket.to(conversationId).emit("messageDelivered", {
+                    conversationId,
+                    messageId,
+                    userIds: message.deliveredBy.map((id) => String(id?._id || id)),
+                });
+            } catch (error) {
+                console.error("Failed to mark message delivered:", error);
+            }
+        });
+
+
+        // Mark Messages Seen
+        socket.on("markMessagesSeen", async (conversationId) => {
+            try {
+                if (!conversationId) return;
+
+                const conversation = await Conversation.findById(conversationId);
+                if (!conversation) return;
+
+                const isMember = conversation.members.some(
+                    (member) => String(member) === String(socket.user._id)
+                );
+
+                if (!isMember) return;
+
+                const messages = await Message.find({
+                    conversation: conversationId,
+                    sender: { $ne: socket.user._id },
+                });
+
+                const messageIds = [];
+
+                for (const message of messages) {
+                    const alreadySeen = (message.seenBy || []).some(
+                        (id) => String(id?._id || id) === String(socket.user._id)
+                    );
+
+                    if (!alreadySeen) {
+                        message.seenBy.push(socket.user._id);
+                        await message.save();
+                        messageIds.push(String(message._id));
+                    }
+                }
+
+                if (messageIds.length > 0) {
+                    socket.to(conversationId).emit("messagesSeen", {
+                        conversationId,
+                        userId: socket.user._id,
+                        messageIds,
+                    });
+                }
+            } catch (error) {
+                console.error("Failed to mark messages seen:", error);
+            }
+        });
+    });
+
+
+    // Disconnect
+    socket.on("disconnect", async () => {
+        const userId = String(socket.user._id);
+
+        // Only mark offline when the user has no other active sockets.
+        // This prevents one tab closing from marking the user offline
+        // while another tab/device is still connected.
+        const becameOffline = removeOnlineSocket(
+            userId,
+            socket.id
+        );
+
+        if (!becameOffline) {
+            return;
+        }
+
+        await User.findByIdAndUpdate(
+            socket.user._id,
+            {
+                isOnline: false,
+                lastOnline: new Date(),
+            }
+        );
+
+        socket.broadcast.emit("userOffline", {
+            userId: socket.user._id,
         });
 
     });
+
+});
 
 };
 

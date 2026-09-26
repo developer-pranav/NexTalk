@@ -46,7 +46,7 @@ const getDateLabel = (dateValue) => {
     });
 };
 
-export default function MessageList({ chatId, messages, isGroup, onNotify, onReply, onEdit, searchQuery = "", searchIndex = 0, onSearchMatches, searchOpen = false }) {
+export default function MessageList({ chatId, messages, isGroup, onNotify, onReply, onEdit }) {
     const { loadOlderMessages, hasMoreOlder, refreshingChatId, typingChatId, deleteMessage, contacts, forwardMessage } = useChat();
     const scrollRef = useRef(null);
     const contentRef = useRef(null);
@@ -66,25 +66,6 @@ export default function MessageList({ chatId, messages, isGroup, onNotify, onRep
 
     const isRefreshing = refreshingChatId === chatId;
     const isTyping = typingChatId === chatId;
-
-    const normalizedSearch = searchQuery.trim().toLowerCase();
-    const searchMatches = normalizedSearch
-        ? messages.reduce((acc, message, index) => {
-            if (message.text?.toLowerCase().includes(normalizedSearch)) acc.push(index);
-            return acc;
-        }, [])
-        : [];
-
-    useEffect(() => {
-        onSearchMatches?.(searchMatches.length);
-    }, [searchMatches.length, onSearchMatches]);
-
-    useEffect(() => {
-        if (!normalizedSearch || !searchMatches.length) return;
-        const targetIndex = searchMatches[Math.min(searchIndex, searchMatches.length - 1)];
-        const node = contentRef.current?.querySelector(`[data-message-index="${targetIndex}"]`);
-        node?.scrollIntoView({ block: "center", behavior: "smooth" });
-    }, [normalizedSearch, searchIndex, searchMatches.join(",")]);
 
     useRubberband(scrollRef, contentRef);
 
@@ -255,10 +236,6 @@ export default function MessageList({ chatId, messages, isGroup, onNotify, onRep
                                         selected={selectedIds.includes(m.id)}
                                         selectMode={selectedIds.length > 0}
                                         onToggleSelect={toggleSelected}
-                                        searchActive={
-                                            searchMatches.includes(i) &&
-                                            searchMatches[searchIndex] === i
-                                        }
                                     />
                                 </div>
                             </div>

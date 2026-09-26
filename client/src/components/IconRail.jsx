@@ -2,7 +2,7 @@ import { Bell, MessageSquare, Search } from "lucide-react";
 import Avatar from "./Avatar";
 import { useAuth } from "../context/AuthContext";
 
-export default function IconRail({ active = "chats", onChangeTab, onOpenProfile }) {
+export default function IconRail({ active = "chats", onChangeTab, onOpenProfile, requestCount = 0 }) {
     const { user } = useAuth();
     const items = [
         { key: "chats", label: "Chats", icon: MessageSquare },
@@ -17,8 +17,13 @@ export default function IconRail({ active = "chats", onChangeTab, onOpenProfile 
                 {items.map(({ key, label, icon: Icon }) => {
                     const isActive = active === key;
                     return (
-                        <button key={key} onClick={() => onChangeTab?.(key)} className="grid h-10 w-10 place-items-center rounded-full transition-all duration-150 active:scale-90" style={{ background: isActive ? "var(--accent-soft)" : "transparent", color: isActive ? "var(--accent)" : "var(--text-faint)" }} aria-label={label}>
+                        <button key={key} onClick={() => onChangeTab?.(key)} className="relative grid h-10 w-10 place-items-center rounded-full transition-all duration-150 active:scale-90" style={{ background: isActive ? "var(--accent-soft)" : "transparent", color: isActive ? "var(--accent)" : "var(--text-faint)" }} aria-label={label}>
                             <Icon size={18} strokeWidth={isActive ? 2.3 : 2} />
+                            {key === "requests" && requestCount > 0 && (
+                                <span className="absolute -right-1 -top-1 min-w-[17px] h-[17px] px-1 rounded-full bg-red-500 text-white text-[9px] font-bold leading-[17px] text-center">
+                                    {requestCount > 99 ? "99+" : requestCount}
+                                </span>
+                            )}
                         </button>
                     );
                 })}
