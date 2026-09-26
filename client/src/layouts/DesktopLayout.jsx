@@ -12,7 +12,7 @@ import { useChat } from "../context/ChatContext";
 import { navigate, usePathname } from "../router/router";
 
 export default function DesktopLayout() {
-    const { contacts, activeChatId, openChat, closeChat } = useChat();
+    const { contacts, activeChatId, openChat, closeChat, pendingRequestsCount } = useChat();
     const [profileOpen, setProfileOpen] = useState(false);
     const [newChatOpen, setNewChatOpen] = useState(false);
     const [toastMsg, setToastMsg] = useState("");
@@ -47,7 +47,7 @@ export default function DesktopLayout() {
 
     return (
         <div className="flex h-full w-full" style={{ background: "var(--bg)" }}>
-            <IconRail active={section} onChangeTab={(key) => navigate(key === "search" ? "/search" : key === "requests" ? "/requests" : "/")} onOpenProfile={() => setProfileOpen(true)} />
+            <IconRail active={section} requestCount={pendingRequestsCount} onChangeTab={(key) => navigate(key === "search" ? "/search" : key === "requests" ? "/requests" : "/")} onOpenProfile={() => setProfileOpen(true)} />
 
             {section === "profile" ? (
                 <div className="min-w-0 flex-1 py-3 pr-3">

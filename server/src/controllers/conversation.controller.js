@@ -149,8 +149,29 @@ const getMyConversations = asyncHandler(async (req, res) => {
             updatedAt: -1
         });
 
-    // Persisted unread counts allow a user who was offline (or had the
-    // conversation closed) to see pending messages immediately after login.
+
+    const blockedConnections = await Connection.find({
+        status: "blocked",
+        $or: [
+            { sender: req.user._id },
+            { receiver: req.user._id },
+        ],
+    }).select("sender receiver blockedBy");
+
+    const blockedByUserMap = new Map();
+
+    for (const connection of blockedConnections) {
+        const otherUserId =
+            String(connection.sender) === String(req.user._id)
+                ? String(connection.receiver)
+                : String(connection.sender);
+
+        blockedByUserMap.set(
+            otherUserId,
+            String(connection.blockedBy)
+        );
+    }
+
     const conversationsWithUnread = await Promise.all(
         conversations.map(async (conversation) => {
             const unreadCount = await Message.countDocuments({
@@ -161,6 +182,34 @@ const getMyConversations = asyncHandler(async (req, res) => {
 
             const data = conversation.toObject();
             data.unreadCount = unreadCount;
+
+            if (conversation.type === "direct") {
+                const otherUser = conversation.members.find(
+                    (member) =>
+                        String(member._id) !== String(req.user._id)
+                );
+
+                if (otherUser) {
+                    const blockerId = blockedByUserMap.get(
+                        String(otherUser._id)
+                    );
+
+                    data.blockedByMe =
+                        Boolean(blockerId) &&
+                        blockerId === String(req.user._id);
+
+                    data.blockedByOther =
+                        Boolean(blockerId) &&
+                        blockerId !== String(req.user._id);
+                } else {
+                    data.blockedByMe = false;
+                    data.blockedByOther = false;
+                }
+            } else {
+                data.blockedByMe = false;
+                data.blockedByOther = false;
+            }
+
             return data;
         })
     );

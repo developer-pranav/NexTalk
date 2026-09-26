@@ -5,6 +5,11 @@ import {
 } from "../data/dummyData";
 import { getMyConversations } from "../api/conversations";
 import { getMessages } from "../api/messages";
+import {
+    blockUser,
+    unblockUser,
+    getBlockedUsers,
+} from "../api/friends";
 import { useAuth } from "./AuthContext";
 import { io } from "socket.io-client";
 
@@ -67,7 +72,9 @@ function adaptConversation(conversation, myUserId) {
             memberIds: (conversation.members || []).map((m) => m._id || m),
             initials: groupInitials(name),
             color: colorFor(conversation._id),
-            blocked: false,
+            blocked: Boolean(conversation.blockedByMe),
+            blockedByMe: Boolean(conversation.blockedByMe),
+            blockedByOther: Boolean(conversation.blockedByOther),
             muted: false,
             lastMessage: mediaLabel(conversation.lastMessage),
             lastMessageId: conversation.lastMessage?._id || null,
@@ -91,7 +98,9 @@ function adaptConversation(conversation, myUserId) {
         otherUserId: other._id,
         initials: groupInitials(name),
         color: colorFor(other._id || conversation._id),
-        blocked: false,
+        blocked: Boolean(conversation.blockedByMe),
+        blockedByMe: Boolean(conversation.blockedByMe),
+        blockedByOther: Boolean(conversation.blockedByOther),
         muted: false,
         lastMessage: mediaLabel(conversation.lastMessage),
         lastMessageTime: formatTime(conversation.lastMessage?.createdAt),
@@ -245,6 +254,10 @@ export function ChatProvider({ children }) {
                     messageId: adapted.id,
                     conversationId: chatId,
                 });
+
+                if (chatId === activeChatIdRef.current) {
+                    socket.emit("markMessagesSeen", chatId);
+                }
             }
 
             setMessagesByChat((prev) => {
@@ -441,15 +454,24 @@ export function ChatProvider({ children }) {
             });
         };
 
-        const handleUserTyping = ({ conversationId, userId }) => {
-            if (!conversationId || String(userId) === String(user._id)) return;
+        const handleUserTyping = (data) => {
+            const { conversationId, userId } = data;
+
+            if (!conversationId || String(userId) === String(user._id)) {
+                return;
+            }
             setTypingChatId(String(conversationId));
         };
 
-        const handleUserStoppedTyping = ({ conversationId, userId }) => {
+        const handleUserStoppedTyping = (data) => {
+            const { conversationId, userId } = data;
+
             if (String(userId) === String(user._id)) return;
+
             setTypingChatId((current) =>
-                !conversationId || String(current) === String(conversationId) ? null : current
+                !conversationId || String(current) === String(conversationId)
+                    ? null
+                    : current
             );
         };
 
@@ -481,6 +503,31 @@ export function ChatProvider({ children }) {
             ));
         };
 
+        const handleBlockStatusChanged = ({
+            blockerId,
+            blocked,
+        }) => {
+            if (!blockerId) return;
+
+            setContacts((prev) =>
+                prev.map((contact) => {
+                    if (
+                        String(contact.otherUserId) !==
+                        String(blockerId)
+                    ) {
+                        return contact;
+                    }
+
+                    return {
+                        ...contact,
+                        blocked: false,
+                        blockedByMe: false,
+                        blockedByOther: Boolean(blocked),
+                    };
+                })
+            );
+        };
+
         const handleSocketError = (message) => {
             setMessagesError((prev) => ({
                 ...prev,
@@ -505,6 +552,7 @@ export function ChatProvider({ children }) {
         socket.on("presenceSnapshot", handlePresenceSnapshot);
         socket.on("userOnline", handleUserOnline);
         socket.on("userOffline", handleUserOffline);
+        socket.on("blockStatusChanged", handleBlockStatusChanged);
         socket.on("socketError", handleSocketError);
         socket.on("connect_error", (error) => {
             console.error("TalkVerse Socket.IO connection failed:", error.message);
@@ -521,6 +569,7 @@ export function ChatProvider({ children }) {
             socket.off("presenceSnapshot", handlePresenceSnapshot);
             socket.off("userOnline", handleUserOnline);
             socket.off("userOffline", handleUserOffline);
+            socket.off("blockStatusChanged", handleBlockStatusChanged);
             socket.off("socketError", handleSocketError);
             socket.disconnect();
             socketRef.current = null;
@@ -553,14 +602,52 @@ export function ChatProvider({ children }) {
             setCurrentUserId(user._id);
 
             try {
-                const conversationsResponse = await getMyConversations();
+                const [conversationsResponse, blockedResponse] = await Promise.all([
+                    getMyConversations(),
+                    getBlockedUsers(),
+                ]);
+
                 if (cancelled) return;
+
+                const blockedUsers = blockedResponse?.data || [];
+
+                const blockedUserIds = new Set(
+                    blockedUsers.map((item) =>
+                        String(
+                            item?._id ||
+                            item?.user?._id ||
+                            item?.userId ||
+                            item
+                        )
+                    )
+                );
 
                 const adapted = (conversationsResponse?.data || []).map((conversation) => {
                     const contact = adaptConversation(conversation, user._id);
-                    return contact.isGroup
-                        ? contact
-                        : { ...contact, online: onlineUserIdsRef.current.has(String(contact.otherUserId)) };
+
+                    if (contact.isGroup) {
+                        return contact;
+                    }
+
+                    const isBlockedFromBackend =
+                        Boolean(conversation.blockedByMe) ||
+                        Boolean(conversation.blockedByOther);
+
+                    const isBlockedByMeFromList =
+                        blockedUserIds.has(String(contact.otherUserId));
+
+                    return {
+                        ...contact,
+                        blocked: contact.blockedByMe || isBlockedByMeFromList,
+                        blockedByMe: contact.blockedByMe || isBlockedByMeFromList,
+                        blockedByOther:
+                            isBlockedFromBackend
+                                ? contact.blockedByOther
+                                : false,
+                        online: onlineUserIdsRef.current.has(
+                            String(contact.otherUserId)
+                        ),
+                    };
                 });
                 const merged = adapted.map((contact) => {
                     const pending = latestSocketMessageRef.current.get(String(contact.id));
@@ -985,9 +1072,52 @@ export function ChatProvider({ children }) {
         setMessagesByChat((prev) => ({ ...prev, [chatId]: [] }));
     }, []);
 
-    const toggleBlock = useCallback((chatId) => {
-        setContacts((prev) => prev.map((c) => (c.id === chatId ? { ...c, blocked: !c.blocked } : c)));
-    }, []);
+    const toggleBlock = useCallback(async (chatId) => {
+        const contact = contacts.find((c) => c.id === chatId);
+
+        if (!contact || contact.isGroup || !contact.otherUserId) {
+            return false;
+        }
+
+        const wasBlockedByMe = Boolean(contact.blockedByMe);
+
+        try {
+            if (wasBlockedByMe) {
+                await unblockUser(contact.otherUserId);
+            } else {
+                await blockUser(contact.otherUserId);
+            }
+
+            const blocked = !wasBlockedByMe;
+
+            // Update my UI immediately after the DB operation succeeds.
+            setContacts((prev) =>
+                prev.map((c) => {
+                    if (c.id !== chatId) return c;
+
+                    return {
+                        ...c,
+                        blocked,
+                        blockedByMe: blocked,
+                        blockedByOther: false,
+                    };
+                })
+            );
+
+            // Tell the other user's connected client immediately.
+            if (socketRef.current?.connected) {
+                socketRef.current.emit("blockStatusChanged", {
+                    targetUserId: contact.otherUserId,
+                });
+            }
+
+            return true;
+        } catch (error) {
+            console.error("Failed to toggle block:", error);
+            return false;
+        }
+    }, [contacts]);
+
 
     const unfriend = useCallback((chatId) => {
         setContacts((prev) => prev.filter((c) => c.id !== chatId));

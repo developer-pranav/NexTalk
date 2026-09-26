@@ -12,7 +12,7 @@ export default function ChatOptionsMenu({
     onUnfriend,
     onRequestConfirm,
 }) {
-    const isBlocked = Boolean(contact.blocked);
+    const isBlockedByMe = Boolean(contact.blockedByMe);
     const isMuted = Boolean(contact.muted);
 
 
@@ -52,16 +52,16 @@ export default function ChatOptionsMenu({
             }
             : {
                 key: "block",
-                label: isBlocked ? "Unblock contact" : "Block contact",
+                label: isBlockedByMe ? "Unblock contact" : "Block contact",
                 icon: Ban,
-                danger: !isBlocked,
-                onClick: () => isBlocked
+                danger: !isBlockedByMe,
+                onClick: () => isBlockedByMe
                     ? onToggleBlock(contact.id)
                     : onRequestConfirm?.({
                         title: "Block contact?",
                         message: `${contact.name} won't be able to message you until you unblock them.`,
                         confirmLabel: "Block",
-                        action: () => { onToggleBlock(contact.id); onNotify?.(`Blocked ${contact.name}`); },
+                        action: () => onToggleBlock(contact.id),
                     }),
             },
         { separator: true, key: "divider" },

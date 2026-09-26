@@ -322,11 +322,16 @@ export default function ContactProfilePopup({
             .filter(Boolean)
         : [];
 
+    const showOnlineStatus =
+        !contact.isGroup &&
+        !contact.blockedByMe &&
+        !contact.blockedByOther;
+
     const subtitle = contact.isGroup
         ? `${contact.members} members`
-        : contact.online
+        : showOnlineStatus && contact.online
             ? "Active now"
-            : contact.lastSeen
+            : showOnlineStatus && contact.lastSeen
                 ? `Last seen ${contact.lastSeen}`
                 : "Offline";
 
@@ -424,7 +429,7 @@ export default function ContactProfilePopup({
                                     size="2xl"
                                 />
 
-                                {!contact.isGroup && contact.online && (
+                                {showOnlineStatus && contact.online && (
                                     <span
                                         className="
                                             absolute bottom-1 right-1
@@ -449,7 +454,7 @@ export default function ContactProfilePopup({
                             </p>
 
                             <div className="relative mt-1 flex items-center gap-1.5">
-                                {!contact.isGroup && contact.online && (
+                                {showOnlineStatus && contact.online && (
                                     <span
                                         className="h-1.5 w-1.5 rounded-full"
                                         style={{

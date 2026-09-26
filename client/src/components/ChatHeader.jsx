@@ -1,15 +1,20 @@
 import { useRef } from "react";
-import { ArrowLeft, MoreVertical, Search } from "lucide-react";
+import { ArrowLeft, MoreVertical } from "lucide-react";
 import Avatar from "./Avatar";
 
-export default function ChatHeader({ contact, onBack, typing, onOpenContactProfile, onOpenMenu, onOpenSearch }) {
+export default function ChatHeader({ contact, onBack, typing, onOpenContactProfile, onOpenMenu }) {
   const menuBtnRef = useRef(null);
+
+  const showOnlineStatus =
+    !contact.isGroup &&
+    !contact.blockedByMe &&
+    !contact.blockedByOther;
 
   const subtitle = typing
     ? "typing…"
     : contact.isGroup
     ? `${contact.members} members`
-    : contact.online
+    : showOnlineStatus && contact.online
     ? "Active now"
     : "Offline";
 
@@ -46,7 +51,7 @@ export default function ChatHeader({ contact, onBack, typing, onOpenContactProfi
             </span>
           )}
 
-          <Avatar name={contact.name} initials={contact.initials} color={contact.color} size="md" showPresence={!contact.isGroup} online={contact.online} />
+          <Avatar name={contact.name} initials={contact.initials} color={contact.color} size="md" showPresence={showOnlineStatus} online={showOnlineStatus && contact.online} />
 
           <div className="min-w-0">
             <p className="truncate text-[15.5px] font-medium leading-tight" style={{ color: "var(--text)" }}>
@@ -63,14 +68,6 @@ export default function ChatHeader({ contact, onBack, typing, onOpenContactProfi
           className="flex h-14 shrink-0 items-center gap-0.5 rounded-full p-1"
           style={{ background: "var(--surface)", boxShadow: "var(--shadow-sm)", border: "1px solid var(--border)" }}
         >
-          <button
-            className="grid h-10 w-10 place-items-center rounded-full hover:bg-[var(--surface-hover)] transition-colors"
-            style={{ color: "var(--text-muted)" }}
-            onClick={() => onOpenSearch?.()}
-            aria-label="Search in conversation"
-          >
-            <Search size={20} />
-          </button>
           <button
             ref={menuBtnRef}
             onClick={() => onOpenMenu?.(menuBtnRef.current?.getBoundingClientRect())}

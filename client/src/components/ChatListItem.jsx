@@ -15,6 +15,10 @@ export default function ChatListItem({ contact, active, onSelect }) {
   const lastTime = contact.lastMessageTime || last?.time;
   const unread = unreadCounts[contact.id] || 0;
   const isTyping = typingChatId === contact.id;
+  const showOnlineStatus =
+    !contact.isGroup &&
+    !contact.blockedByMe &&
+    !contact.blockedByOther;
 
   return (
     <button
@@ -28,7 +32,7 @@ export default function ChatListItem({ contact, active, onSelect }) {
         if (!active) e.currentTarget.style.background = "transparent";
       }}
     >
-      <Avatar name={contact.name} initials={contact.initials} color={contact.color} showPresence={!contact.isGroup} online={contact.online} />
+      <Avatar name={contact.name} initials={contact.initials} color={contact.color} showPresence={showOnlineStatus} online={showOnlineStatus && contact.online} />
 
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">

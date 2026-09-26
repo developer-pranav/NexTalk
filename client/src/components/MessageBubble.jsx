@@ -702,7 +702,7 @@ function StatusIcon({ status, isGroup, seenCount = 0 }) {
     return <Check size={14} strokeWidth={2.2} style={{ opacity: 0.7 }} />;
 }
 
-export default function MessageBubble({ message, showAuthor, animate, onMenu, onReplyNavigate, searchActive = false, selected = false, selectMode = false, onToggleSelect }) {
+export default function MessageBubble({ message, showAuthor, animate, onMenu, onReplyNavigate, selected = false, selectMode = false, onToggleSelect }) {
     const isMe = message.from === "me";
     const pressTimerRef = useRef(null);
     const pressStartRef = useRef({ x: 0, y: 0 });
@@ -843,7 +843,7 @@ export default function MessageBubble({ message, showAuthor, animate, onMenu, on
                 onTouchMove={handleTouchMove}
                 onTouchEnd={handleTouchEnd}
                 onTouchCancel={handleTouchEnd}
-                className={`${isMediaBubble ? `tv-bubble-media ${isAudio ? "tv-bubble-audio" : ""} max-w-[78%] sm:max-w-[65%] ${isFrameless ? "tv-frameless p-0 shadow-none" : "p-1.5 shadow-[var(--shadow-sm)]"}` : "max-w-[78%] sm:max-w-[65%] px-3.5 py-2 shadow-[var(--shadow-sm)]"} select-none transition-all duration-200 ${searchActive ? "ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg)]" : ""} ${selected ? "ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg)]" : ""} ${selectMode ? "cursor-pointer" : ""}`}
+                className={`${isMediaBubble ? `tv-bubble-media ${isAudio ? "tv-bubble-audio" : ""} max-w-[78%] sm:max-w-[65%] ${isFrameless ? "tv-frameless p-0 shadow-none" : "p-1.5 shadow-[var(--shadow-sm)]"}` : "max-w-[78%] sm:max-w-[65%] px-3.5 py-2 shadow-[var(--shadow-sm)]"} select-none transition-all duration-200 ${selected ? "ring-2 ring-[var(--accent)] ring-offset-2 ring-offset-[var(--bg)]" : ""} ${selectMode ? "cursor-pointer" : ""}`}
                 style={{
                     background: isFrameless ? "transparent" : (isMe ? "var(--bubble-sent)" : "var(--bubble-received)"),
                     color: isMe ? "var(--bubble-sent-text)" : "var(--bubble-received-text)",

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { MessageCircle } from "lucide-react";
 import ChatHeader from "./ChatHeader";
 import MessageList from "./MessageList";
@@ -7,7 +7,6 @@ import ChatOptionsMenu from "./ChatOptionsMenu";
 import ContactProfilePopup from "./ContactProfilePopup";
 import Toast from "./Toast";
 import ConfirmModal from "./ConfirmModal";
-import ChatSearchBar from "./ChatSearchBar";
 import { useChat } from "../context/ChatContext";
 
 export function EmptyChatState() {
@@ -70,10 +69,6 @@ export default function ChatWindow({ contact, onBack }) {
     const [toastMsg, setToastMsg] = useState("");
     const [contactProfileOpen, setContactProfileOpen] = useState(false);
     const [menuAnchor, setMenuAnchor] = useState(null);
-    const [searchOpen, setSearchOpen] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
-    const [searchIndex, setSearchIndex] = useState(0);
-    const [searchCount, setSearchCount] = useState(0);
     const [replyTo, setReplyTo] = useState(null);
     const [editingMessage, setEditingMessage] = useState(null);
     const [confirmAction, setConfirmAction] = useState(null);
@@ -90,33 +85,13 @@ export default function ChatWindow({ contact, onBack }) {
         return () => clearTimeout(t);
     }, [toastMsg]);
 
-    const isBlocked = Boolean(contact.blocked);
+    const isBlockedByMe = Boolean(contact.blockedByMe);
+    const isBlockedByOther = Boolean(contact.blockedByOther);
+    const isBlocked = isBlockedByMe || isBlockedByOther;
 
     useEffect(() => {
         markMessagesSeen(contact.id);
     }, [contact.id, markMessagesSeen]);
-
-    const handleSearchMatches = useCallback((count) => {
-        setSearchCount(count);
-        setSearchIndex((current) => (count ? Math.min(current, count - 1) : 0));
-    }, []);
-
-    const closeSearch = () => {
-        setSearchOpen(false);
-        setSearchQuery("");
-        setSearchIndex(0);
-        setSearchCount(0);
-    };
-
-    const nextSearch = () => {
-        if (!searchCount) return;
-        setSearchIndex((current) => (current + 1) % searchCount);
-    };
-
-    const previousSearch = () => {
-        if (!searchCount) return;
-        setSearchIndex((current) => (current - 1 + searchCount) % searchCount);
-    };
 
     return (
         <div
@@ -144,10 +119,6 @@ export default function ChatWindow({ contact, onBack }) {
                     onNotify={setToastMsg}
                     onReply={setReplyTo}
                     onEdit={setEditingMessage}
-                    searchQuery={searchQuery}
-                    searchIndex={searchIndex}
-                    onSearchMatches={handleSearchMatches}
-                    searchOpen={searchOpen}
                 />
             )}
 
@@ -196,20 +167,7 @@ export default function ChatWindow({ contact, onBack }) {
                         setContactProfileOpen(true)
                     }
                     onOpenMenu={(rect) => setMenuAnchor(rect)}
-                    onOpenSearch={() => setSearchOpen(true)}
                 />
-
-                {searchOpen && (
-                    <ChatSearchBar
-                        query={searchQuery}
-                        onQueryChange={(value) => { setSearchQuery(value); setSearchIndex(0); }}
-                        matchIndex={searchIndex}
-                        matchCount={searchCount}
-                        onPrev={previousSearch}
-                        onNext={nextSearch}
-                        onClose={closeSearch}
-                    />
-                )}
             </div>
 
 
@@ -261,7 +219,11 @@ export default function ChatWindow({ contact, onBack }) {
                     replyTo={replyTo}
                     onCancelReply={() => setReplyTo(null)}
                     disabled={isBlocked}
-                    disabledMessage={`You've blocked ${contact.name}`}
+                    disabledMessage={
+                        isBlockedByMe
+                            ? "You blocked this user"
+                            : "Unable to send message to this user"
+                    }
                     onNotify={setToastMsg}
                     onTyping={(text) => {
                         if (text.trim()) startTyping(contact.id);

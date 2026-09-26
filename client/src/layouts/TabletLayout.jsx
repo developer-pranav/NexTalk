@@ -12,7 +12,7 @@ import { useChat } from "../context/ChatContext";
 import { navigate, usePathname } from "../router/router";
 
 export default function TabletLayout() {
-    const { contacts, activeChatId, openChat, closeChat } = useChat();
+    const { contacts, activeChatId, openChat, closeChat, pendingRequestsCount } = useChat();
     const [profileOpen, setProfileOpen] = useState(false);
     const [newChatOpen, setNewChatOpen] = useState(false);
     const [toastMsg, setToastMsg] = useState("");
@@ -28,7 +28,7 @@ export default function TabletLayout() {
 
     return (
         <div className="flex h-full w-full" style={{ background: "var(--bg)" }}>
-            <IconRail active={section} onChangeTab={(key) => navigate(key === "search" ? "/search" : key === "requests" ? "/requests" : "/")} onOpenProfile={() => navigate("/profile")} />
+            <IconRail active={section} requestCount={pendingRequestsCount} onChangeTab={(key) => navigate(key === "search" ? "/search" : key === "requests" ? "/requests" : "/")} onOpenProfile={() => navigate("/profile")} />
 
             <div className="relative min-w-0 flex-1 overflow-hidden">
                 {section === "profile" ? (
