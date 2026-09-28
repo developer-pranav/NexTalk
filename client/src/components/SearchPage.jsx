@@ -136,6 +136,7 @@ function PersonPreview({
                             <Avatar
                                 name={person.name}
                                 initials={person.initials}
+                                src={person.avatar}
                                 color={person.color}
                                 size="2xl"
                                 showPresence={isFriend}
@@ -766,6 +767,7 @@ export default function SearchPage({ onBack, onOpenChat }) {
                                         <Avatar
                                             name={person.name}
                                             initials={person.initials}
+                                            src={person.avatar}
                                             color={person.color}
                                             size="md"
                                             showPresence={isFriend}

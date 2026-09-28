@@ -31,7 +31,7 @@ export function PasswordField({ label, show, setShow, ...props }) {
                 <button
                     type="button"
                     onClick={() => setShow((value) => !value)}
-                    className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg hover:bg-[var(--surface-hover)]"
+                    className="absolute right-2 top-1/2 grid h-9 w-9 -translate-y-1/2 place-items-center rounded-lg hover:bg-[var(--surface-hover)] cursor-pointer"
                     style={{ color: "var(--text-muted)" }}
                     aria-label={show ? "Hide password" : "Show password"}
                 >

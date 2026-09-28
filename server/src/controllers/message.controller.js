@@ -97,6 +97,82 @@ const getMessages = asyncHandler(async (req, res) => {
 });
 
 
+const getSharedMessages = asyncHandler(async (req, res) => {
+    const { conversationId } = req.params;
+
+    const conversation = await Conversation.findById(conversationId).select("members");
+
+    if (!conversation) {
+        throw new ApiError(404, "Conversation not found");
+    }
+
+    const isMember = conversation.members.some(
+        (member) => member.toString() === req.user._id.toString()
+    );
+
+    if (!isMember) {
+        throw new ApiError(403, "You are not a member of this conversation");
+    }
+
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100);
+    const skip = (page - 1) * limit;
+
+    const filter = {
+        conversation: conversationId,
+        deleted: { $ne: true },
+        type: { $in: ["image", "video", "audio", "file"] },
+        "media.url": { $exists: true, $ne: "" },
+    };
+
+    const [messages, total] = await Promise.all([
+        Message.find(filter)
+            .select("type media sender createdAt")
+            .populate("sender", "username fullname avatar")
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit),
+        Message.countDocuments(filter),
+    ]);
+
+    const items = messages.map((message) => ({
+        id: message._id,
+        type: message.type,
+        name: message.media?.fileName || (
+            message.type === "image"
+                ? "Image"
+                : message.type === "video"
+                    ? "Video"
+                    : message.type === "audio"
+                        ? "Audio"
+                        : "File"
+        ),
+        url: message.media?.url || null,
+        fileSize: message.media?.fileSize || 0,
+        mimeType: message.media?.mimeType || "",
+        date: message.createdAt,
+        sender: message.sender,
+    }));
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {
+                items,
+                pagination: {
+                    page,
+                    limit,
+                    total,
+                    totalPages: Math.ceil(total / limit),
+                    hasMore: page * limit < total,
+                },
+            },
+            "Shared messages fetched successfully"
+        )
+    );
+});
+
+
 const sendMessage = asyncHandler(async (req, res) => {
     const { conversationId } = req.params;
     const { content } = req.body;
@@ -375,6 +451,7 @@ const sendMediaMessage = asyncHandler(async (req, res) => {
 
 export {
     getMessages,
+    getSharedMessages,
     sendMessage,
     deleteMessage,
     sendMediaMessage

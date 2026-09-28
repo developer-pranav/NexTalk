@@ -13,12 +13,7 @@ export default function MobileChatCard({ contact, unread, isTyping, lastMessage,
             className="anim-pop-in flex w-full items-center gap-3 rounded-3xl px-3.5 py-3 text-left transition-transform active:scale-[0.98]"
             style={{ background: "var(--surface)", boxShadow: "var(--shadow-sm)", animationDelay: `${delay}ms` }}
         >
-            <div
-                className="shrink-0 rounded-full p-[2.5px]"
-                style={{ border: `2px solid ${contact.color}55` }}
-            >
-                <Avatar name={contact.name} initials={contact.initials} color={contact.color} size="md" />
-            </div>
+            <Avatar name={contact.name} initials={contact.initials} src={contact.avatar} color={contact.color} size="md" />
 
             <div className="min-w-0 flex-1">
                 <div className="flex items-baseline justify-between gap-2">

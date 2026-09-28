@@ -2,6 +2,7 @@ import { Router } from "express";
 
 import {
     getMessages,
+    getSharedMessages,
     sendMessage,
     sendMediaMessage,
     deleteMessage
@@ -11,6 +12,12 @@ import { verifyJWT } from "../middleware/auth.middleware.js";
 import { upload } from "../middleware/multer.middleware.js";
 
 const router = Router();
+
+router.get(
+    "/:conversationId/shared",
+    verifyJWT,
+    getSharedMessages
+);
 
 router.get(
     "/:conversationId",

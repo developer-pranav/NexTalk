@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
     X,
     Image as ImageIcon,
@@ -7,31 +7,13 @@ import {
     ArrowLeft,
     Download,
     CalendarDays,
+    Video,
+    Music2,
 } from "lucide-react";
 import Avatar from "./Avatar";
 import { useChat } from "../context/ChatContext";
-import { currentUser } from "../data/dummyData";
-
-const sharedData = {
-    u1: [
-        { id: "s1", type: "image", name: "onboarding-flow.png", date: "Today", url: null },
-        { id: "s2", type: "image", name: "empty-state.png", date: "Yesterday", url: null },
-        { id: "s3", type: "file", name: "Project-notes.pdf", date: "Yesterday", url: null },
-        { id: "s4", type: "image", name: "mobile-layout.png", date: "Mon", url: null },
-        { id: "s5", type: "file", name: "Design-spec.pdf", date: "Mon", url: null },
-    ],
-
-    u2: [
-        { id: "s1", type: "file", name: "api-documentation.pdf", date: "Today", url: null },
-        { id: "s2", type: "image", name: "checkout-flow.png", date: "Yesterday", url: null },
-        { id: "s3", type: "file", name: "deployment-notes.txt", date: "Mon", url: null },
-    ],
-
-    u3: [
-        { id: "s1", type: "image", name: "safari-test.png", date: "Yesterday", url: null },
-        { id: "s2", type: "file", name: "regression-report.pdf", date: "Mon", url: null },
-    ],
-};
+import { useAuth } from "../context/AuthContext";
+import { getSharedMessages } from "../api/messages";
 
 function SharedPreview({ item }) {
     if (item.type === "image") {
@@ -58,6 +40,30 @@ function SharedPreview({ item }) {
         );
     }
 
+    if (item.type === "video") {
+        return (
+            <div
+                className="relative aspect-square w-full overflow-hidden rounded-xl"
+                style={{ background: "var(--surface-hover)" }}
+            >
+                <video
+                    src={item.url}
+                    muted
+                    preload="metadata"
+                    className="h-full w-full object-cover"
+                />
+                <div
+                    className="absolute inset-0 grid place-items-center"
+                    style={{ background: "rgba(0,0,0,0.16)" }}
+                >
+                    <div className="grid h-9 w-9 place-items-center rounded-full bg-black/55 text-white">
+                        <Video size={17} />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div
             className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-xl p-2"
@@ -66,10 +72,11 @@ function SharedPreview({ item }) {
                 border: "1px solid var(--border)",
             }}
         >
-            <FileText
-                size={24}
-                style={{ color: "var(--accent)" }}
-            />
+            {item.type === "audio" ? (
+                <Music2 size={24} style={{ color: "var(--accent)" }} />
+            ) : (
+                <FileText size={24} style={{ color: "var(--accent)" }} />
+            )}
 
             <p
                 className="w-full truncate text-center text-[10px]"
@@ -89,7 +96,9 @@ function SharedModal({ open, items, onClose }) {
     const filtered =
         tab === "all"
             ? items
-            : items.filter((item) => item.type === tab);
+            : tab === "file"
+                ? items.filter((item) => item.type === "file" || item.type === "audio")
+                : items.filter((item) => item.type === tab);
 
     return (
         <div className="fixed inset-0 z-[70]">
@@ -164,6 +173,7 @@ function SharedModal({ open, items, onClose }) {
                     {[
                         ["all", "All"],
                         ["image", "Images"],
+                        ["video", "Videos"],
                         ["file", "Files"],
                     ].map(([value, label]) => (
                         <button
@@ -197,7 +207,9 @@ function SharedModal({ open, items, onClose }) {
                                     color: "var(--text-muted)",
                                 }}
                             >
-                                {tab === "file" ? (
+                                {tab === "video" ? (
+                                    <Video size={21} />
+                                ) : tab === "file" ? (
                                     <FileText size={21} />
                                 ) : (
                                     <ImageIcon size={21} />
@@ -240,27 +252,30 @@ function SharedModal({ open, items, onClose }) {
                                                 "var(--surface-hover)",
                                         }}
                                     >
-                                        {item.type === "image" ? (
-                                            item.url ? (
-                                                <img
+                                        {item.type === "image" && item.url ? (
+                                            <img
+                                                src={item.url}
+                                                alt={item.name}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : item.type === "video" ? (
+                                            <div className="relative h-full w-full">
+                                                <video
                                                     src={item.url}
-                                                    alt={item.name}
+                                                    muted
+                                                    preload="metadata"
                                                     className="h-full w-full object-cover"
                                                 />
-                                            ) : (
-                                                <ImageIcon
-                                                    size={19}
-                                                    style={{
-                                                        color: "var(--text-muted)",
-                                                    }}
-                                                />
-                                            )
+                                                <div className="absolute inset-0 grid place-items-center bg-black/15">
+                                                    <Video size={18} className="text-white" />
+                                                </div>
+                                            </div>
+                                        ) : item.type === "audio" ? (
+                                            <Music2 size={20} style={{ color: "var(--accent)" }} />
                                         ) : (
                                             <FileText
                                                 size={20}
-                                                style={{
-                                                    color: "var(--accent)",
-                                                }}
+                                                style={{ color: "var(--accent)" }}
                                             />
                                         )}
                                     </div>
@@ -283,18 +298,19 @@ function SharedModal({ open, items, onClose }) {
                                         </p>
                                     </div>
 
-                                    <button
-                                        className="
-                                            grid h-8 w-8 place-items-center
-                                            rounded-full
-                                            hover:bg-[var(--surface-hover)]
-                                        "
-                                        style={{
-                                            color: "var(--text-muted)",
-                                        }}
-                                    >
-                                        <Download size={16} />
-                                    </button>
+                                    {item.url && (
+                                        <a
+                                            href={item.url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            download={item.name || true}
+                                            className="grid h-8 w-8 place-items-center rounded-full hover:bg-[var(--surface-hover)]"
+                                            style={{ color: "var(--text-muted)" }}
+                                            aria-label={`Open ${item.name}`}
+                                        >
+                                            <Download size={16} />
+                                        </a>
+                                    )}
                                 </div>
                             ))}
                         </div>
@@ -311,8 +327,40 @@ export default function ContactProfilePopup({
     onClose,
 }) {
     const { contacts } = useChat();
+    const { user } = useAuth();
 
     const [sharedOpen, setSharedOpen] = useState(false);
+    const [sharedItems, setSharedItems] = useState([]);
+    const [sharedLoading, setSharedLoading] = useState(false);
+
+    useEffect(() => {
+        if (!open || !contact?.id || contact.isGroup) {
+            setSharedItems([]);
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadShared = async () => {
+            setSharedLoading(true);
+            try {
+                const response = await getSharedMessages(contact.id, { page: 1, limit: 100 });
+                if (!cancelled) {
+                    setSharedItems(response?.data?.items || []);
+                }
+            } catch {
+                if (!cancelled) setSharedItems([]);
+            } finally {
+                if (!cancelled) setSharedLoading(false);
+            }
+        };
+
+        loadShared();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [open, contact?.id, contact?.isGroup]);
 
     if (!open || !contact) return null;
 
@@ -334,8 +382,6 @@ export default function ContactProfilePopup({
             : showOnlineStatus && contact.lastSeen
                 ? `Last seen ${contact.lastSeen}`
                 : "Offline";
-
-    const sharedItems = sharedData[contact.id] || [];
 
     const recentShared = sharedItems.slice(0, 4);
 
@@ -425,6 +471,7 @@ export default function ContactProfilePopup({
                                 <Avatar
                                     name={contact.name}
                                     initials={contact.initials}
+                                    src={contact.avatar}
                                     color={contact.color}
                                     size="2xl"
                                 />
@@ -512,9 +559,10 @@ export default function ContactProfilePopup({
                                         }}
                                     >
                                         <Avatar
-                                            name={currentUser.name}
-                                            initials={currentUser.initials}
-                                            color={currentUser.color}
+                                            name={user?.fullname || "You"}
+                                            initials={user?.fullname?.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()}
+                                            src={user?.avatar}
+                                            color="var(--accent)"
                                             size="sm"
                                         />
 
@@ -542,6 +590,7 @@ export default function ContactProfilePopup({
                                             <Avatar
                                                 name={m.name}
                                                 initials={m.initials}
+                                                src={m.avatar}
                                                 color={m.color}
                                                 size="sm"
                                                 showPresence
@@ -587,7 +636,7 @@ export default function ContactProfilePopup({
                                         className="text-[13px] leading-5"
                                         style={{ color: "var(--text-muted)" }}
                                     >
-                                        {contact.about || "No bio added yet."}
+                                        {contact.bio || "No bio added yet."}
                                     </p>
                                 </div>
                             </div>
@@ -625,7 +674,20 @@ export default function ContactProfilePopup({
                                     )}
                                 </div>
 
-                                {recentShared.length > 0 ? (
+                                {sharedLoading ? (
+                                    <div
+                                        className="flex items-center justify-center rounded-2xl px-4 py-5"
+                                        style={{
+                                            background: "var(--bg)",
+                                            border: "1px solid var(--border)",
+                                        }}
+                                    >
+                                        <span
+                                            className="h-4 w-4 animate-spin rounded-full border-2 border-[var(--border)] border-t-[var(--accent)]"
+                                            aria-label="Loading shared files"
+                                        />
+                                    </div>
+                                ) : recentShared.length > 0 ? (
                                     <div className="grid w-full min-w-0 grid-cols-4 gap-2">
                                         {recentShared.slice(0, 4).map((item) => (
                                             <button

@@ -4,6 +4,7 @@ import { ApiError } from "../utils/apiReq.js";
 import { ApiResponse } from "../utils/apiRes.js";
 import jwt from "jsonwebtoken";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { getRandomDefaultAvatar } from "../config/defaultAvatars.js";
 
 const cookieOptions = {
     httpOnly: true,
@@ -13,13 +14,14 @@ const cookieOptions = {
 
 const register = asyncHandler(async (req, res) => {
 
-    const { username, fullname, email, password } = req.body;
+    const { username, fullname, email, password, gender } = req.body;
 
     if (
         !username?.trim() ||
         !fullname?.trim() ||
         !email?.trim() ||
-        !password?.trim()
+        !password?.trim() ||
+        !["male", "female"].includes(gender)
     ) {
         throw new ApiError(400, "All details are required fields");
     }
@@ -42,8 +44,15 @@ const register = asyncHandler(async (req, res) => {
         username,
         fullname,
         email,
-        password
+        password,
+        gender,
+        avatar: getRandomDefaultAvatar(gender) || undefined
     });
+
+    if (!user.avatar) {
+        const defaultAvatar = getRandomDefaultAvatar(user.gender);
+        if (defaultAvatar) user.avatar = defaultAvatar;
+    }
 
     const accessToken = await user.generateAccessToken();
     const refreshToken = await user.generateRefreshToken();
@@ -93,6 +102,11 @@ const login = asyncHandler(async (req, res) => {
         throw new ApiError(401, "Invalid username/email or password");
     }
 
+    if (!user.avatar) {
+        const defaultAvatar = getRandomDefaultAvatar(user.gender);
+        if (defaultAvatar) user.avatar = defaultAvatar;
+    }
+
     const accessToken = await user.generateAccessToken();
     const refreshToken = await user.generateRefreshToken();
 
@@ -135,6 +149,14 @@ const logout = asyncHandler(async (req, res) => {
 })
 
 const getCurrentUser = asyncHandler(async (req, res) => {
+    if (!req.user.avatar) {
+        const defaultAvatar = getRandomDefaultAvatar(req.user.gender);
+        if (defaultAvatar) {
+            req.user.avatar = defaultAvatar;
+            await req.user.save();
+        }
+    }
+
     return res.json(
         new ApiResponse(
             200,
@@ -291,6 +313,30 @@ const updateAvatar = asyncHandler(async (req, res) => {
     );
 });
 
+const removeAvatar = asyncHandler(async (req, res) => {
+    const defaultAvatar = getRandomDefaultAvatar(req.user.gender);
+    if (!defaultAvatar) {
+        throw new ApiError(500, "Default avatars are not configured");
+    }
+
+    req.user.avatar = defaultAvatar;
+
+    await req.user.save();
+
+    const responseUser = req.user.toObject();
+
+    delete responseUser.password;
+    delete responseUser.refreshToken;
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            responseUser,
+            "Profile avatar reset successfully"
+        )
+    );
+});
+
 export {
     register,
     login,
@@ -300,5 +346,6 @@ export {
     searchUser,
     getUser,
     updateProfile,
-    updateAvatar
+    updateAvatar,
+    removeAvatar
 }

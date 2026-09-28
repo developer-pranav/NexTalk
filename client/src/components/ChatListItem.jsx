@@ -32,7 +32,7 @@ export default function ChatListItem({ contact, active, onSelect }) {
         if (!active) e.currentTarget.style.background = "transparent";
       }}
     >
-      <Avatar name={contact.name} initials={contact.initials} color={contact.color} showPresence={showOnlineStatus} online={showOnlineStatus && contact.online} />
+      <Avatar name={contact.name} initials={contact.initials} src={contact.avatar} color={contact.color} showPresence={showOnlineStatus} online={showOnlineStatus && contact.online} />
 
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-2">

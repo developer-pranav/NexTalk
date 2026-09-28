@@ -227,6 +227,7 @@ export default function NewGroupPopup({
                                             <Avatar
                                                 name={c.name}
                                                 initials={c.initials}
+                                                src={c.avatar}
                                                 color={c.color}
                                                 size="sm"
                                                 showPresence

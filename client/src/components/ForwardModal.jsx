@@ -41,7 +41,7 @@ export default function ForwardModal({ open, message, contacts, currentChatId, o
         <div className="max-h-64 overflow-y-auto px-2 py-2">
           {filtered.map((contact) => (
             <button key={contact.id} type="button" onClick={() => setTarget(contact)} className="flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left" style={{ background: target?.id === contact.id ? "var(--accent-soft)" : "transparent" }}>
-              <Avatar name={contact.name} initials={contact.initials} color={contact.color} size="sm" />
+              <Avatar name={contact.name} initials={contact.initials} src={contact.avatar} color={contact.color} size="sm" />
               <span className="min-w-0 flex-1 truncate text-[13.5px]" style={{ color: "var(--text)" }}>{contact.name}</span>
             </button>
           ))}

@@ -6,6 +6,11 @@ export const getMessages = async (conversationId, params = {}) => {
     return response.data;
 };
 
+export const getSharedMessages = async (conversationId, params = {}) => {
+    const response = await api.get(`/messages/${conversationId}/shared`, { params });
+    return response.data;
+};
+
 export const sendMessage = async (conversationId, data) => {
     const response = await api.post(
         `/messages/${conversationId}`,

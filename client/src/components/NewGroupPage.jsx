@@ -61,7 +61,7 @@ export default function NewGroupPage({ onBack }) {
                             const isSelected = selected.includes(c.id);
                             return (
                                 <button key={c.id} onClick={() => toggle(c.id)} className="flex w-full items-center gap-3 rounded-2xl px-2.5 py-2.5 text-left transition-colors" style={{ background: isSelected ? "var(--accent-soft)" : "transparent" }}>
-                                    <Avatar name={c.name} initials={c.initials} color={c.color} size="sm" showPresence online={c.online} />
+                                    <Avatar name={c.name} initials={c.initials} src={c.avatar} color={c.color} size="sm" showPresence online={c.online} />
                                     <div className="min-w-0 flex-1">
                                         <p className="truncate text-[14px] font-medium" style={{ color: "var(--text)" }}>{c.name}</p>
                                         {c.role && <p className="truncate text-[12px]" style={{ color: "var(--text-muted)" }}>{c.role}</p>}

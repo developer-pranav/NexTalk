@@ -51,7 +51,7 @@ export default function ChatHeader({ contact, onBack, typing, onOpenContactProfi
             </span>
           )}
 
-          <Avatar name={contact.name} initials={contact.initials} color={contact.color} size="md" showPresence={showOnlineStatus} online={showOnlineStatus && contact.online} />
+          <Avatar name={contact.name} initials={contact.initials} src={contact.avatar} color={contact.color} size="md" showPresence={showOnlineStatus} online={showOnlineStatus && contact.online} />
 
           <div className="min-w-0">
             <p className="truncate text-[15.5px] font-medium leading-tight" style={{ color: "var(--text)" }}>

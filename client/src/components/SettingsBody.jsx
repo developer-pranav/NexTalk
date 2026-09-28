@@ -2,7 +2,6 @@ import { useState } from "react";
 import { Bell, CircleUserRound, Lock, LogOut, ShieldBan, X } from "lucide-react";
 import Avatar from "./Avatar";
 import ThemeSwitch from "./ThemeSwitch";
-import { currentUser } from "../data/dummyData";
 import { useAuth } from "../context/AuthContext";
 import { getBlockedUsers, unblockUser } from "../api/friends.js";
 import BlocklistModal from "./BlocklistModal";
@@ -38,7 +37,7 @@ function Row({ icon: Icon, label, right }) {
 }
 
 export default function SettingsBody() {
-    const { logout } = useAuth();
+    const { user, logout } = useAuth();
     const [notifications, setNotifications] = useState(true);
     const [readReceipts, setReadReceipts] = useState(true);
     const [blocklistOpen, setBlocklistOpen] = useState(false);
@@ -82,13 +81,13 @@ export default function SettingsBody() {
     return (
         <div className="flex flex-col gap-6">
             <div className="flex items-center gap-3">
-                <Avatar name={currentUser.name} initials={currentUser.initials} color={currentUser.color} size="lg" />
+                <Avatar name={user?.fullname} initials={user?.fullname?.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()} src={user?.avatar} color="var(--accent)" size="lg" />
                 <div>
                     <p className="text-[15px] font-medium" style={{ color: "var(--text)" }}>
-                        {currentUser.name}
+                        {user?.fullname || "You"}
                     </p>
                     <p className="text-[12.5px]" style={{ color: "var(--text-muted)" }}>
-                        you@example.com
+                        {user?.email || ""}
                     </p>
                 </div>
             </div>

@@ -135,7 +135,7 @@ const getMyConversations = asyncHandler(async (req, res) => {
     })
         .populate(
             "members",
-            "username fullname avatar isOnline"
+            "username fullname avatar bio isOnline"
         )
         .populate({
             path: "lastMessage",

@@ -43,3 +43,8 @@ export const updateAvatar = async (formData) => {
     });
     return response.data;
 };
+
+export const removeAvatar = async () => {
+    const response = await api.delete("/users/me/avatar");
+    return response.data;
+};

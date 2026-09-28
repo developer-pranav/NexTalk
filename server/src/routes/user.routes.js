@@ -8,6 +8,7 @@ import {
     searchUser,
     updateProfile,
     updateAvatar,
+    removeAvatar,
     getUser
 } from "../controllers/user.controller.js";
 import { verifyJWT } from "../middleware/auth.middleware.js";
@@ -36,6 +37,12 @@ router.patch(
     verifyJWT,
     upload.single("avatar"),
     updateAvatar
+);
+
+router.delete(
+    "/me/avatar",
+    verifyJWT,
+    removeAvatar
 );
 
 export default router

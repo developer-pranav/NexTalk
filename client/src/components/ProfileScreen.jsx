@@ -3,7 +3,7 @@ import { Pencil, X, Check, Loader2 } from "lucide-react";
 import Avatar from "./Avatar";
 import ThemeSwitch from "./ThemeSwitch";
 import { useAuth } from "../context/AuthContext";
-import { updateAvatar, updateProfile } from "../api/users";
+import { removeAvatar, updateAvatar, updateProfile } from "../api/users";
 import { getBlockedUsers, unblockUser } from "../api/friends.js";
 import BlocklistModal from "./BlocklistModal";
 import { useToast } from "../context/ToastContext";
@@ -206,6 +206,19 @@ export default function ProfileScreen() {
         } finally { setSavingAvatar(false); }
     };
 
+    const resetAvatar = async () => {
+        setSavingAvatar(true);
+        try {
+            const response = await removeAvatar();
+            updateUser(response?.data || user);
+            showToast?.("Default avatar restored", "success");
+        } catch (error) {
+            showToast?.(error?.response?.data?.message || "Unable to reset avatar", "error");
+        } finally {
+            setSavingAvatar(false);
+        }
+    };
+
     const handleLogout = async () => {
         setLoggingOut(true);
         try { await logout(); }
@@ -260,6 +273,26 @@ export default function ProfileScreen() {
                         <Pencil size={12} />
                     </button>
                     <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={choosePhoto} />
+                    <button
+                        type="button"
+                        onClick={resetAvatar}
+                        disabled={savingAvatar}
+                        className="absolute -bottom-1 -left-1 rounded-full px-2 py-1 text-[9px] font-semibold disabled:opacity-60"
+                        style={{ background: "var(--surface)", color: "var(--danger)", border: "1px solid var(--border)" }}
+                        aria-label="Reset avatar"
+                    >
+                        Reset
+                    </button>
+                    <button
+                        type="button"
+                        onClick={resetAvatar}
+                        disabled={savingAvatar}
+                        className="absolute -bottom-1 -left-1 rounded-full px-2 py-1 text-[9px] font-semibold disabled:opacity-60"
+                        style={{ background: "var(--surface)", color: "var(--danger)", border: "1px solid var(--border)" }}
+                        aria-label="Reset avatar"
+                    >
+                        Reset
+                    </button>
                 </div>
 
                 <div ref={nameEditRef} className="mt-3 flex items-center justify-center gap-1.5">
