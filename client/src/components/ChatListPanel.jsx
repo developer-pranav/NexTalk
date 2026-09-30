@@ -15,6 +15,7 @@ export default function ChatListPanel({ activeChatId, onSelect, onNewChat }) {
     clearChat,
     toggleBlock,
     unfriend,
+    toggleMute,
     contactsLoading,
     contactsError,
   } = useChat();
@@ -90,6 +91,7 @@ export default function ChatListPanel({ activeChatId, onSelect, onNewChat }) {
           onClose={() => setContextMenu(null)}
           onClearChat={clearChat}
           onToggleBlock={toggleBlock}
+          onToggleMute={toggleMute}
           onUnfriend={unfriend}
           onRequestConfirm={(config) => setConfirmAction(config)}
         />

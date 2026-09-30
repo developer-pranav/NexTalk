@@ -493,7 +493,6 @@ button {
     }
 }
 
-/* TalkVerse authentication form */
 .auth-input {
     height: 50px;
     width: 100%;
@@ -622,16 +621,7 @@ button {
     .auth-card-body { padding: 0 22px 24px; }
 }
 
-/* ==========================================================================
-   TalkVerse media UI
-   Thumbnails · audio card · lightbox · video player
-   Used only by components/MessageBubble.jsx (all classes are `tv-` prefixed).
-   ========================================================================== */
 
-/* ---- Media bubble sizing ---------------------------------------------------
-   Every media bubble in a chat gets the same width, capped by the row
-   (the Tailwind max-w-[78%] / sm:max-w-[65%] on the bubble), so a thumbnail can
-   never be wider than its bubble or push the list sideways. ---------------- */
 .tv-bubble-media {
     width: min(360px, 100%);
     min-width: 0;
@@ -1602,10 +1592,6 @@ button {
     to { transform: scaleY(1); opacity: .95; }
 }
 
-/* =========================================================
-   TALKVERSE — INSTAGRAM STYLE REPLY PREVIEW
-   Structured layout: label + quote row + exact-height line.
-   ========================================================= */
 
 .tv-reply {
     display: flex;

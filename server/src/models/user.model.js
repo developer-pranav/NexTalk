@@ -39,6 +39,32 @@ const userSchema = new Schema({
         type: String,
         trim: true
     },
+    pushSubscriptions: [{
+        endpoint: {
+            type: String,
+            required: true
+        },
+        expirationTime: {
+            type: Date,
+            default: null
+        },
+        keys: {
+            p256dh: {
+                type: String,
+                required: true
+            },
+            auth: {
+                type: String,
+                required: true
+            }
+        }
+    }],
+    mutedNotificationUsers: [
+        {
+            type: Schema.Types.ObjectId,
+            ref: "User",
+        },
+    ],
     isOnline: {
         type: Boolean,
         required: true,

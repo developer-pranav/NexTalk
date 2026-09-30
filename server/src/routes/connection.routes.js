@@ -10,6 +10,7 @@ import {
     blockUser,
     unblockUser,
     getBlockedUsers,
+    unfriendUser,
 } from "../controllers/connection.controller.js";
 
 import { verifyJWT } from "../middleware/auth.middleware.js";
@@ -78,5 +79,13 @@ router.delete(
     verifyJWT,
     unblockUser
 );
+
+// Unfriend User
+router.delete(
+    "/unfriend/:userId",
+    verifyJWT,
+    unfriendUser
+);
+
 
 export default router;

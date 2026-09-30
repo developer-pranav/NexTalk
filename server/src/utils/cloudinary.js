@@ -58,4 +58,46 @@ const uploadOnCloudinary = async (localFilePath, folder) => {
     }
 };
 
-export { uploadOnCloudinary };
+const deleteFromCloudinary = async (publicId, resourceType = "image") => {
+    try {
+        if (!publicId) {
+            return false;
+        }
+
+        let cloudinaryResourceType = "image";
+
+        if (resourceType === "video" || resourceType === "audio") {
+            cloudinaryResourceType = "video";
+        } else if (resourceType === "file" || resourceType === "raw") {
+            cloudinaryResourceType = "raw";
+        }
+
+        const result = await cloudinary.uploader.destroy(
+            publicId,
+            {
+                resource_type: cloudinaryResourceType,
+                invalidate: true,
+            }
+        );
+
+        console.log(
+            `Cloudinary delete [${cloudinaryResourceType}]:`,
+            publicId,
+            result.result
+        );
+
+        return result.result === "ok" || result.result === "not found";
+    } catch (error) {
+        console.error(
+            "Cloudinary delete error:",
+            error.message
+        );
+
+        return false;
+    }
+};
+
+export {
+    uploadOnCloudinary,
+    deleteFromCloudinary,
+};

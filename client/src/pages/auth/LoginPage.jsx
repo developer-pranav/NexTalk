@@ -13,8 +13,8 @@ function friendlyError(error, action) {
     if (status === 400) return "Please enter your username/email and password.";
     if (status === 401) return "That username/email or password doesn't look right.";
     if (status === 429) return "Too many attempts. Please wait a moment and try again.";
-    if (status >= 500) return "TalkVerse is having trouble right now. Please try again in a moment.";
-    if (!error?.response) return "Couldn't connect to TalkVerse. Check that the server is running.";
+    if (status >= 500) return "NexTalk is having trouble right now. Please try again in a moment.";
+    if (!error?.response) return "Couldn't connect to NexTalk. Check that the server is running.";
     return message || `Couldn't ${action}. Please try again.`;
 }
 
@@ -48,7 +48,7 @@ export default function LoginPage() {
     return (
         <AuthLayout
             eyebrow="Welcome back"
-            title="Sign in to TalkVerse"
+            title="Sign in to NexTalk"
             subtitle="Continue your conversations where you left off."
         >
             <form onSubmit={submit} className="space-y-4">
@@ -105,7 +105,7 @@ export default function LoginPage() {
                 </button>
 
                 <p className="pt-1 text-center text-[13px]" style={{ color: "var(--text-muted)" }}>
-                    New to TalkVerse?{" "}
+                    New to NexTalk?{" "}
                     <button type="button" onClick={() => navigate(AUTH_ROUTES.REGISTER)} className="font-semibold hover:opacity-80" style={{ color: "var(--accent)" }}>
                         Create account
                     </button>

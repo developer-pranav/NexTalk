@@ -4,16 +4,26 @@ import {
     AVATAR_PALETTE,
 } from "../data/dummyData";
 import { getMyConversations } from "../api/conversations";
-import { getMessages } from "../api/messages";
+import { getMessages, deleteMessage as deleteMessageApi } from "../api/messages";
 import {
     blockUser,
     unblockUser,
     getBlockedUsers,
+    unfriendUser,
+    getFriendRequests,
 } from "../api/friends";
 import { useAuth } from "./AuthContext";
 import { io } from "socket.io-client";
+import {
+    getVapidPublicKey,
+    subscribeToPush,
+    getMutedNotificationUsers,
+    muteUserNotifications,
+    unmuteUserNotifications,
+} from "../api/notifications";
 
 const ChatContext = createContext(null);
+
 
 let idCounter = 1000;
 const nextId = () => `local-${idCounter++}`;
@@ -58,7 +68,7 @@ function mediaLabel(message) {
 
 // Maps a conversation returned by GET /conversations (or /conversations/:id)
 // into the "contact" shape the existing UI components already know how to render.
-function adaptConversation(conversation, myUserId) {
+function adaptConversation(conversation, myUserId, mutedUserIds = []) {
     const isGroup = conversation.type === "group";
 
     if (isGroup) {
@@ -103,7 +113,7 @@ function adaptConversation(conversation, myUserId) {
         blocked: Boolean(conversation.blockedByMe),
         blockedByMe: Boolean(conversation.blockedByMe),
         blockedByOther: Boolean(conversation.blockedByOther),
-        muted: false,
+        muted: mutedUserIds.includes(String(other._id)),
         lastMessage: mediaLabel(conversation.lastMessage),
         lastMessageTime: formatTime(conversation.lastMessage?.createdAt),
         lastMessageFromMe: String(conversation.lastMessage?.sender?._id || conversation.lastMessage?.sender || "") === String(myUserId),
@@ -186,13 +196,84 @@ function adaptMessage(message, myUserId) {
     return adapted;
 }
 
+async function registerTalkVersePushNotifications() {
+    if (
+        typeof window === "undefined" ||
+        !("serviceWorker" in navigator) ||
+        !("PushManager" in window) ||
+        !("Notification" in window)
+    ) {
+        return;
+    }
+
+    try {
+        const registration = await navigator.serviceWorker.register("/sw.js");
+
+        let permission = Notification.permission;
+
+        if (permission === "default") {
+            permission = await Notification.requestPermission();
+        }
+
+        if (permission !== "granted") {
+            return;
+        }
+
+        const publicKeyResponse = await getVapidPublicKey();
+        const publicKey =
+            publicKeyResponse?.data?.publicKey ||
+            publicKeyResponse?.publicKey;
+
+        if (!publicKey) {
+            console.warn("NexTalk VAPID public key was not returned by the server.");
+            return;
+        }
+
+        let subscription = await registration.pushManager.getSubscription();
+
+        if (!subscription) {
+            const applicationServerKey = urlBase64ToUint8Array(publicKey);
+
+            subscription = await registration.pushManager.subscribe({
+                userVisibleOnly: true,
+                applicationServerKey,
+            });
+        }
+
+        await subscribeToPush(subscription.toJSON());
+    } catch (error) {
+        console.error("Failed to register NexTalk push notifications:", error);
+    }
+}
+
+function urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding)
+        .replace(/-/g, "+")
+        .replace(/_/g, "/");
+
+    const rawData = window.atob(base64);
+
+    return Uint8Array.from(
+        [...rawData].map((char) => char.charCodeAt(0))
+    );
+}
+
 export function ChatProvider({ children }) {
     const { user, isAuthenticated } = useAuth();
 
     const [contacts, setContacts] = useState([]);
+    const contactsRef = useRef([]);
+
+    useEffect(() => {
+        contactsRef.current = contacts;
+    }, [contacts]);
+
     const [activeChatId, setActiveChatId] = useState(null);
     const [messagesByChat, setMessagesByChat] = useState({});
     const [unreadCounts, setUnreadCounts] = useState({});
+    const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+    const [mutedNotificationUserIds, setMutedNotificationUserIds] = useState([]);
     const [typingChatId, setTypingChatId] = useState(null);
     const activeChatIdRef = useRef(null);
     const typingTimeoutRef = useRef(null);
@@ -223,6 +304,125 @@ export function ChatProvider({ children }) {
     useEffect(() => {
         activeChatIdRef.current = activeChatId;
     }, [activeChatId]);
+
+    // Friend request badge counter
+    useEffect(() => {
+        if (!isAuthenticated || !user?._id) {
+            setPendingRequestsCount(0);
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadPendingRequestsCount = async () => {
+            try {
+                const response = await getFriendRequests();
+
+                const data = response?.data ?? response;
+                const count = Array.isArray(data) ? data.length : 0;
+
+                if (!cancelled) {
+                    setPendingRequestsCount(count);
+                }
+            } catch (error) {
+                console.error("Failed to load friend request count:", error);
+
+                if (!cancelled) {
+                    setPendingRequestsCount(0);
+                }
+            }
+        };
+
+        loadPendingRequestsCount();
+
+        // Keep badge updated without Socket.IO changes.
+        const interval = setInterval(loadPendingRequestsCount, 15000);
+
+        // RequestsPage already dispatches this after accept/decline/block.
+        const handleRequestsUpdated = () => {
+            loadPendingRequestsCount();
+        };
+
+        window.addEventListener(
+            "talkverse:requests-updated",
+            handleRequestsUpdated
+        );
+
+        return () => {
+            cancelled = true;
+            clearInterval(interval);
+
+            window.removeEventListener(
+                "talkverse:requests-updated",
+                handleRequestsUpdated
+            );
+        };
+    }, [isAuthenticated, user?._id]);
+
+    useEffect(() => {
+        if (!isAuthenticated || !user?._id) {
+            setMutedNotificationUserIds([]);
+            return;
+        }
+
+        let cancelled = false;
+
+        const loadMutedNotificationUsers = async () => {
+            try {
+                const response = await getMutedNotificationUsers();
+
+                const data = response?.data ?? response;
+
+                if (!cancelled) {
+                    setMutedNotificationUserIds(
+                        Array.isArray(data)
+                            ? data.map((id) => String(id?._id || id))
+                            : []
+                    );
+                }
+            } catch (error) {
+                console.error(
+                    "Failed to load muted notification users:",
+                    error
+                );
+
+                if (!cancelled) {
+                    setMutedNotificationUserIds([]);
+                }
+            }
+        };
+
+        loadMutedNotificationUsers();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isAuthenticated, user?._id]);
+
+    useEffect(() => {
+        setContacts((prev) =>
+            prev.map((contact) => {
+                if (contact.isGroup || !contact.otherUserId) {
+                    return contact;
+                }
+
+                return {
+                    ...contact,
+                    muted: mutedNotificationUserIds.includes(
+                        String(contact.otherUserId)
+                    ),
+                };
+            })
+        );
+    }, [mutedNotificationUserIds]);
+
+    // Register this browser/device for system push notifications.
+    // The server stores the subscription against the logged-in user.
+    useEffect(() => {
+        if (!isAuthenticated || !user?._id) return;
+
+        registerTalkVersePushNotifications();
+    }, [isAuthenticated, user?._id]);
 
     // Real-time Socket.IO connection. The server authenticates this socket
     // from the same accessToken cookie used by the REST API.
@@ -505,6 +705,51 @@ export function ChatProvider({ children }) {
             ));
         };
 
+        const handleFriendshipRemoved = ({
+            userId,
+            conversationId,
+        }) => {
+            if (!userId) return;
+
+            const contact = contactsRef.current?.find?.(
+                (item) => String(item.otherUserId) === String(userId)
+            );
+
+            const chatId = conversationId || contact?.id;
+            if (!chatId) return;
+
+            setContacts((prev) =>
+                prev.filter(
+                    (item) => String(item.otherUserId) !== String(userId)
+                )
+            );
+
+            setMessagesByChat((prev) => {
+                const next = { ...prev };
+                delete next[chatId];
+                return next;
+            });
+
+            setUnreadCounts((prev) => {
+                const next = { ...prev };
+                delete next[chatId];
+                return next;
+            });
+
+            loadedChatsRef.current.delete(chatId);
+            joinedChatRef.current.delete(chatId);
+
+            if (socketRef.current?.connected) {
+                socketRef.current.emit("leaveConversation", chatId);
+            }
+
+            setActiveChatId((current) =>
+                current === chatId ? null : current
+            );
+
+            window.location.href = "/";
+        };
+
         const handleBlockStatusChanged = ({
             blockerId,
             blocked,
@@ -555,9 +800,10 @@ export function ChatProvider({ children }) {
         socket.on("userOnline", handleUserOnline);
         socket.on("userOffline", handleUserOffline);
         socket.on("blockStatusChanged", handleBlockStatusChanged);
+        socket.on("friendshipRemoved", handleFriendshipRemoved);
         socket.on("socketError", handleSocketError);
         socket.on("connect_error", (error) => {
-            console.error("TalkVerse Socket.IO connection failed:", error.message);
+            console.error("NexTalk Socket.IO connection failed:", error.message);
         });
 
         return () => {
@@ -572,6 +818,7 @@ export function ChatProvider({ children }) {
             socket.off("userOnline", handleUserOnline);
             socket.off("userOffline", handleUserOffline);
             socket.off("blockStatusChanged", handleBlockStatusChanged);
+            socket.off("friendshipRemoved", handleFriendshipRemoved);
             socket.off("socketError", handleSocketError);
             socket.disconnect();
             socketRef.current = null;
@@ -625,7 +872,7 @@ export function ChatProvider({ children }) {
                 );
 
                 const adapted = (conversationsResponse?.data || []).map((conversation) => {
-                    const contact = adaptConversation(conversation, user._id);
+                    const contact = adaptConversation(conversation, user._id, mutedNotificationUserIds);
 
                     if (contact.isGroup) {
                         return contact;
@@ -701,7 +948,7 @@ export function ChatProvider({ children }) {
         return () => {
             cancelled = true;
         };
-    }, [isAuthenticated, user?._id]);
+    }, [isAuthenticated, user?._id, mutedNotificationUserIds]);
 
     // Refresh the chat list when a friend request is accepted elsewhere in the app.
     useEffect(() => {
@@ -710,7 +957,7 @@ export function ChatProvider({ children }) {
             try {
                 const response = await getMyConversations();
                 const adapted = (response?.data || []).map((conversation) => {
-                    const contact = adaptConversation(conversation, user._id);
+                    const contact = adaptConversation(conversation, user._id, mutedNotificationUserIds);
                     return contact.isGroup
                         ? contact
                         : { ...contact, online: onlineUserIdsRef.current.has(String(contact.otherUserId)) };
@@ -1003,7 +1250,7 @@ export function ChatProvider({ children }) {
         return edited;
     }, []);
 
-    const deleteMessage = useCallback((chatId, messageId) => {
+    const deleteMessage = useCallback(async (chatId, messageId) => {
         setMessagesByChat((prev) => ({
             ...prev,
             [chatId]: (prev[chatId] || []).map((message) => {
@@ -1028,12 +1275,26 @@ export function ChatProvider({ children }) {
             }),
         }));
 
-        // Persist + broadcast the deletion through Socket.IO so every
-        // participant updates immediately, even if their chat is closed.
-        socketRef.current?.emit("deleteMessage", {
-            conversationId: chatId,
-            messageId,
-        });
+        try {
+            // Persist the deletion through the REST endpoint. The server also
+            // removes the Cloudinary asset when it is no longer referenced.
+            await deleteMessageApi(messageId);
+
+            // Keep the existing Socket.IO event untouched for compatibility
+            // with the current real-time deletion flow.
+            socketRef.current?.emit("deleteMessage", {
+                conversationId: chatId,
+                messageId,
+            });
+
+            return true;
+        } catch (error) {
+            setMessagesError((prev) => ({
+                ...prev,
+                [chatId]: error?.response?.data?.message || error?.message || "Failed to delete message",
+            }));
+            return false;
+        }
     }, []);
 
     const createGroup = useCallback((name, memberIds) => {
@@ -1121,24 +1382,111 @@ export function ChatProvider({ children }) {
     }, [contacts]);
 
 
-    const unfriend = useCallback((chatId) => {
-        setContacts((prev) => prev.filter((c) => c.id !== chatId));
-        setMessagesByChat((prev) => {
-            const next = { ...prev };
-            delete next[chatId];
-            return next;
-        });
-        setUnreadCounts((prev) => {
-            const next = { ...prev };
-            delete next[chatId];
-            return next;
-        });
-        setActiveChatId((current) => (current === chatId ? null : current));
-    }, []);
+    const unfriend = useCallback(async (chatId) => {
+        const contact = contacts.find((c) => c.id === chatId);
 
-    const toggleMute = useCallback((chatId) => {
-        setContacts((prev) => prev.map((c) => (c.id === chatId ? { ...c, muted: !c.muted } : c)));
-    }, []);
+        if (!contact || contact.isGroup || !contact.otherUserId) {
+            return false;
+        }
+
+        try {
+            await unfriendUser(contact.otherUserId);
+
+            loadedChatsRef.current.delete(chatId);
+            joinedChatRef.current.delete(chatId);
+
+            if (socketRef.current?.connected) {
+                socketRef.current.emit("leaveConversation", chatId);
+            }
+
+            // Remove the contact from my UI.
+            setContacts((prev) =>
+                prev.filter((c) => c.id !== chatId)
+            );
+
+            // Remove the locally cached messages.
+            setMessagesByChat((prev) => {
+                const next = { ...prev };
+                delete next[chatId];
+                return next;
+            });
+
+            // Remove unread count.
+            setUnreadCounts((prev) => {
+                const next = { ...prev };
+                delete next[chatId];
+                return next;
+            });
+
+            // Close the chat if it is currently open.
+            setActiveChatId((current) =>
+                current === chatId ? null : current
+            );
+
+            return true;
+        } catch (error) {
+            console.error("Failed to unfriend:", error);
+            return false;
+        }
+    }, [contacts]);
+
+    const toggleMute = useCallback(async (chatId) => {
+        const contact = contacts.find((c) => c.id === chatId);
+
+        if (
+            !contact ||
+            contact.isGroup ||
+            !contact.otherUserId
+        ) {
+            return false;
+        }
+
+        const userId = String(contact.otherUserId);
+        const currentlyMuted = Boolean(contact.muted);
+
+        try {
+            if (currentlyMuted) {
+                await unmuteUserNotifications(userId);
+
+                setMutedNotificationUserIds((prev) =>
+                    prev.filter((id) => String(id) !== userId)
+                );
+
+                setContacts((prev) =>
+                    prev.map((c) =>
+                        c.id === chatId
+                            ? { ...c, muted: false }
+                            : c
+                    )
+                );
+            } else {
+                await muteUserNotifications(userId);
+
+                setMutedNotificationUserIds((prev) =>
+                    prev.includes(userId)
+                        ? prev
+                        : [...prev, userId]
+                );
+
+                setContacts((prev) =>
+                    prev.map((c) =>
+                        c.id === chatId
+                            ? { ...c, muted: true }
+                            : c
+                    )
+                );
+            }
+
+            return true;
+        } catch (error) {
+            console.error(
+                "Failed to toggle notification mute:",
+                error
+            );
+
+            return false;
+        }
+    }, [contacts]);
 
     const deleteChat = useCallback((chatId) => {
         setContacts((prev) => prev.filter((c) => c.id !== chatId));
@@ -1177,6 +1525,7 @@ export function ChatProvider({ children }) {
             toggleMute,
             deleteChat,
             unreadCounts,
+            pendingRequestsCount,
             typingChatId,
             loadOlderMessages,
             refreshingChatId,
@@ -1209,6 +1558,7 @@ export function ChatProvider({ children }) {
             toggleMute,
             deleteChat,
             unreadCounts,
+            pendingRequestsCount,
             typingChatId,
             loadOlderMessages,
             refreshingChatId,

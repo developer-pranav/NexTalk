@@ -44,3 +44,8 @@ export const unblockUser = async (userId) => {
     const response = await api.delete(`/connections/block/${userId}`);
     return response.data;
 };
+
+export const unfriendUser = async (userId) => {
+    const response = await api.delete(`/connections/unfriend/${userId}`);
+    return response.data;
+};

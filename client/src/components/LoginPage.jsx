@@ -160,7 +160,7 @@ export default function LoginPage() {
                         className="text-[28px] sm:text-[32px] font-semibold tracking-tight"
                         style={{ color: "var(--text)" }}
                     >
-                        {mode === "signup" ? "Create your account" : "Sign in to TalkVerse"}
+                        {mode === "signup" ? "Create your account" : "Sign in to NexTalk"}
                     </h1>
 
                     <p
@@ -168,7 +168,7 @@ export default function LoginPage() {
                         style={{ color: "var(--text-muted)" }}
                     >
                         {mode === "signup"
-                            ? "Join TalkVerse and start connecting."
+                            ? "Join NexTalk and start connecting."
                             : "Continue your conversations where you left off."}
                     </p>
                 </div>
@@ -335,7 +335,7 @@ export default function LoginPage() {
                         </button>
 
                         <p className="text-center text-[13px] pt-1" style={{ color: "var(--text-muted)" }}>
-                            New to TalkVerse?{" "}
+                            New to NexTalk?{" "}
                             <button
                                 type="button"
                                 onClick={() => switchMode("signup")}

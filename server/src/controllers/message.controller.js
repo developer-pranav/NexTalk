@@ -6,7 +6,7 @@ import { Message } from "../models/message.model.js";
 import { Conversation } from "../models/conversation.model.js";
 import { Connection } from "../models/connection.model.js";
 
-import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 
 
 const getMessages = asyncHandler(async (req, res) => {
@@ -288,8 +288,24 @@ const deleteMessage = asyncHandler(async (req, res) => {
         );
     }
 
-    // Soft-delete so the deleted state is consistent for every participant
-    // and a later message fetch cannot resurrect the original content.
+    // Delete media from Cloudinary if no other active
+    // message is using the same asset.
+    if (message.media?.publicId) {
+        const mediaStillInUse = await Message.exists({
+            _id: { $ne: message._id },
+            "media.publicId": message.media.publicId,
+            deleted: { $ne: true },
+        });
+
+        if (!mediaStillInUse) {
+            await deleteFromCloudinary(
+                message.media.publicId,
+                message.type
+            );
+        }
+    }
+
+    // Soft-delete the message.
     await Message.findByIdAndUpdate(messageId, {
         $set: {
             deleted: true,
@@ -302,17 +318,25 @@ const deleteMessage = asyncHandler(async (req, res) => {
         },
     });
 
-    // If deleted message was lastMessage, move the preview to the latest
-    // non-deleted message.
-    const conversation = await Conversation.findById(message.conversation);
+    // Existing last-message handling stays exactly the same.
+    const conversation = await Conversation.findById(
+        message.conversation
+    );
 
-    if (conversation?.lastMessage?.toString() === messageId) {
+    if (
+        conversation?.lastMessage?.toString() ===
+        messageId
+    ) {
         const previousMessage = await Message.findOne({
             conversation: message.conversation,
             deleted: { $ne: true },
-        }).sort({ createdAt: -1 });
+        }).sort({
+            createdAt: -1
+        });
 
-        conversation.lastMessage = previousMessage?._id || null;
+        conversation.lastMessage =
+            previousMessage?._id || null;
+
         await conversation.save();
     }
 

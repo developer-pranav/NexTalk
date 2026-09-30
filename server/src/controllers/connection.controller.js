@@ -1,9 +1,12 @@
 import { User } from "../models/user.model.js";
 import { Connection } from "../models/connection.model.js";
 import { Conversation } from "../models/conversation.model.js";
+import { Message } from "../models/message.model.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiReq.js";
 import { ApiResponse } from "../utils/apiRes.js";
+import { deleteFromCloudinary } from "../utils/cloudinary.js";
+import { createAndPushNotification } from "../utils/pushNotification.js";
 
 // Send friend request
 const sendFriendRequest = asyncHandler(async (req, res) => {
@@ -64,6 +67,23 @@ const sendFriendRequest = asyncHandler(async (req, res) => {
 
             await existingConnection.save();
 
+            await createAndPushNotification({
+                recipient: userId,
+                sender: req.user._id,
+                type: "friend_request",
+                title: "New friend request",
+                message: `${req.user.fullname || req.user.username} sent you a friend request`,
+                relatedConnection: existingConnection._id,
+            });
+
+            const io = req.app.get("io");
+            io?.to(`user:${userId}`).emit("notification", {
+                type: "friend_request",
+                title: "New friend request",
+                message: `${req.user.fullname || req.user.username} sent you a friend request`,
+                relatedConnection: String(existingConnection._id),
+            });
+
             return res.status(200).json(
                 new ApiResponse(
                     200,
@@ -78,6 +98,23 @@ const sendFriendRequest = asyncHandler(async (req, res) => {
         sender: req.user._id,
         receiver: userId,
         status: "pending",
+    });
+
+    await createAndPushNotification({
+        recipient: userId,
+        sender: req.user._id,
+        type: "friend_request",
+        title: "New friend request",
+        message: `${req.user.fullname || req.user.username} sent you a friend request`,
+        relatedConnection: connection._id,
+    });
+
+    const io = req.app.get("io");
+    io?.to(`user:${userId}`).emit("notification", {
+        type: "friend_request",
+        title: "New friend request",
+        message: `${req.user.fullname || req.user.username} sent you a friend request`,
+        relatedConnection: String(connection._id),
     });
 
     return res.status(201).json(
@@ -228,6 +265,25 @@ const acceptFriendRequest = asyncHandler(async (req, res) => {
             members: [request.sender, request.receiver],
         });
     }
+
+    await createAndPushNotification({
+        recipient: request.sender,
+        sender: req.user._id,
+        type: "friend_request_accepted",
+        title: "Friend request accepted",
+        message: `${req.user.fullname || req.user.username} accepted your friend request`,
+        relatedConnection: request._id,
+        conversation: conversation._id,
+    });
+
+    const io = req.app.get("io");
+    io?.to(`user:${String(request.sender)}`).emit("notification", {
+        type: "friend_request_accepted",
+        title: "Friend request accepted",
+        message: `${req.user.fullname || req.user.username} accepted your friend request`,
+        relatedConnection: String(request._id),
+        conversationId: String(conversation._id),
+    });
 
     return res.status(200).json(
         new ApiResponse(
@@ -448,6 +504,148 @@ const unblockUser = asyncHandler(async (req, res) => {
     );
 });
 
+const unfriendUser = asyncHandler(async (req, res) => {
+    const { userId } = req.params;
+
+    if (req.user._id.toString() === userId) {
+        throw new ApiError(
+            400,
+            "You cannot unfriend yourself"
+        );
+    }
+
+    // Find the existing friendship
+    const connection = await Connection.findOne({
+        status: "friend",
+        $or: [
+            {
+                sender: req.user._id,
+                receiver: userId,
+            },
+            {
+                sender: userId,
+                receiver: req.user._id,
+            },
+        ],
+    });
+
+    if (!connection) {
+        throw new ApiError(
+            404,
+            "Friendship not found"
+        );
+    }
+
+    // Find their direct conversation
+    const conversation = await Conversation.findOne({
+        type: "direct",
+        members: {
+            $all: [
+                req.user._id,
+                userId,
+            ],
+        },
+    });
+
+    if (conversation) {
+        /*
+         * Get every message from this conversation before deleting it.
+         * We need the media publicIds so Cloudinary can also be cleaned.
+         */
+        const messages = await Message.find({
+            conversation: conversation._id,
+        }).select("media type");
+
+        /*
+         * Remove the conversation's messages from MongoDB.
+         */
+        await Message.deleteMany({
+            conversation: conversation._id,
+        });
+
+        /*
+         * Delete Cloudinary media only when the same publicId
+         * is NOT being used by any other message.
+         *
+         * This is important for forwarded media:
+         * original chat deleted ≠ Cloudinary file automatically deleted
+         * if another forwarded message still references it.
+         */
+        const mediaMap = new Map();
+
+        for (const message of messages) {
+            const publicId = message.media?.publicId;
+
+            if (!publicId) continue;
+
+            const resourceType =
+                message.type === "image"
+                    ? "image"
+                    : message.type === "video" ||
+                        message.type === "audio"
+                        ? "video"
+                        : "raw";
+
+            mediaMap.set(publicId, resourceType);
+        }
+
+        for (const [publicId, resourceType] of mediaMap) {
+            const stillUsed = await Message.exists({
+                "media.publicId": publicId,
+            });
+
+            if (!stillUsed) {
+                try {
+                    await deleteFromCloudinary(
+                        publicId,
+                        resourceType
+                    );
+                } catch (error) {
+                    console.error(
+                        `Failed to delete Cloudinary media ${publicId}:`,
+                        error
+                    );
+                }
+            }
+        }
+
+        /*
+         * Finally delete the conversation itself.
+         */
+        await Conversation.findByIdAndDelete(
+            conversation._id
+        );
+    }
+
+    /*
+     * Delete the friendship.
+     *
+     * This allows either user to send a completely new
+     * friend request later.
+     */
+    await Connection.findByIdAndDelete(
+        connection._id
+    );
+
+    // Notify the other user so their chat/contact list updates immediately.
+    const io = req.app.get("io");
+
+    if (io) {
+        io.to(`user:${userId}`).emit("friendshipRemoved", {
+            userId: String(req.user._id),
+            conversationId: conversation?._id ? String(conversation._id) : null,
+        });
+    }
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            {},
+            "Unfriended successfully"
+        )
+    );
+});
+
 export {
     sendFriendRequest,
     getFriendRequests,
@@ -458,4 +656,5 @@ export {
     blockUser,
     unblockUser,
     getBlockedUsers,
+    unfriendUser,
 };

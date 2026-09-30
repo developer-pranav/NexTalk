@@ -1,4 +1,4 @@
-# TalkVerse - Real Time Chat Application
+# NexTalk - Real Time Chat Application
 
 > 🚧 **Project Status: Under Development**
 >
@@ -7,7 +7,7 @@
 ---
 
 ## 📌 Project Overview
-TalkVerse is a full-stack real-time chat application built using the MERN stack and Socket.IO. The platform allows users to communicate through direct messages and group conversations with real-time message delivery.
+NexTalk is a full-stack real-time chat application built using the MERN stack and Socket.IO. The platform allows users to communicate through direct messages and group conversations with real-time message delivery.
 
 ---
 

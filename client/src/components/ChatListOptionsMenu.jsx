@@ -1,4 +1,4 @@
-import { Ban, Eraser, UserMinus, LogOut } from "lucide-react";
+import { Ban, Bell, BellOff, Eraser, UserMinus, LogOut } from "lucide-react";
 import ActionMenu from "./ActionMenu";
 
 export default function ChatListOptionsMenu({
@@ -7,24 +7,34 @@ export default function ChatListOptionsMenu({
     onClose,
     onClearChat,
     onToggleBlock,
+    onToggleMute,
     onUnfriend,
+    onNotify,
     onRequestConfirm,
 }) {
     const isBlocked = Boolean(contact.blocked);
     const isGroup = Boolean(contact.isGroup);
+    const isMuted = Boolean(contact.muted);
 
 
     const items = [
         {
-            key: "clear",
-            label: "Clear chat",
-            icon: Eraser,
-            onClick: () => onRequestConfirm?.({
-                title: "Clear chat?",
-                message: `All messages with ${contact.name} will be permanently removed.`,
-                confirmLabel: "Clear chat",
-                action: () => onClearChat(contact.id),
-            }),
+            key: "mute",
+            label: isMuted
+                ? "Unmute notifications"
+                : "Mute notifications",
+            icon: isMuted ? Bell : BellOff,
+            onClick: async () => {
+                const changed = await onToggleMute?.(contact.id);
+
+                if (changed !== false) {
+                    onNotify?.(
+                        isMuted
+                            ? "Notifications unmuted"
+                            : "Notifications muted"
+                    );
+                }
+            },
         },
         {
             key: "block",

@@ -1,4 +1,5 @@
 import Avatar from "./Avatar";
+import { BellOff } from "lucide-react";
 
 export default function ChatCard({ contact, unread, isTyping, lastMessage, onSelect, onContextMenu, delay = 0, active = false }) {
     // Chat list can be rendered before this conversation is opened, so the
@@ -33,9 +34,18 @@ export default function ChatCard({ contact, unread, isTyping, lastMessage, onSel
                         {contact.name}
                     </p>
                     {displayLastMessage && (
-                        <span className="shrink-0 text-[11px]" style={{ color: "var(--text-faint)" }}>
-                            {displayLastMessage.time}
-                        </span>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                            {contact.muted && (
+                                <BellOff
+                                    size={13}
+                                    strokeWidth={2}
+                                    style={{ color: "var(--text-faint)" }}
+                                />
+                            )}
+                            <span className="text-[11px]" style={{ color: "var(--text-faint)" }}>
+                                {displayLastMessage.time}
+                            </span>
+                        </div>
                     )}
                 </div>
                 <div className="mt-0.5 flex items-center justify-between gap-2">

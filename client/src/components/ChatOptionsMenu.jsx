@@ -17,26 +17,35 @@ export default function ChatOptionsMenu({
 
 
     const items = [
-        // {
-        //     key: "mute",
-        //     label: isMuted ? "Unmute notifications" : "Mute notifications",
-        //     icon: isMuted ? Bell : BellOff,
-        //     onClick: () => {
-        //         onToggleMute(contact.id);
-        //         onNotify?.(isMuted ? "Notifications unmuted" : "Notifications muted");
-        //     },
-        // },
         {
-            key: "clear",
-            label: "Clear chat",
-            icon: Eraser,
-            onClick: () => onRequestConfirm?.({
-                title: "Clear chat?",
-                message: `All messages with ${contact.name} will be permanently removed.`,
-                confirmLabel: "Clear chat",
-                action: () => { onClearChat(contact.id); onNotify?.("Chat cleared"); },
-            }),
+            key: "mute",
+            label: isMuted
+                ? "Unmute notifications"
+                : "Mute notifications",
+            icon: isMuted ? Bell : BellOff,
+            onClick: async () => {
+                const changed = await onToggleMute?.(contact.id);
+
+                if (changed !== false) {
+                    onNotify?.(
+                        isMuted
+                            ? "Notifications unmuted"
+                            : "Notifications muted"
+                    );
+                }
+            },
         },
+        // {
+        //     key: "clear",
+        //     label: "Clear chat",
+        //     icon: Eraser,
+        //     onClick: () => onRequestConfirm?.({
+        //         title: "Clear chat?",
+        //         message: `All messages with ${contact.name} will be permanently removed.`,
+        //         confirmLabel: "Clear chat",
+        //         action: () => { onClearChat(contact.id); onNotify?.("Chat cleared"); },
+        //     }),
+        // },
         contact.isGroup
             ? {
                 key: "exit",

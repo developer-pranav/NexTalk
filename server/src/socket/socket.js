@@ -3,6 +3,7 @@ import { User } from "../models/user.model.js";
 import { Conversation } from "../models/conversation.model.js";
 import { Message } from "../models/message.model.js";
 import { Connection } from "../models/connection.model.js";
+import { createAndPushNotification } from "../utils/pushNotification.js";
 
 const onlineSockets = new Map();
 
@@ -407,7 +408,29 @@ const initializeSocket = (io) => {
                             });
 
 
-                    // Send to conversation room
+                    // Create notifications for the other conversation members.
+                    const recipientIds = conversation.members
+                        .filter((member) => String(member) !== String(socket.user._id));
+
+                    const notificationMessage = content.trim().length > 120
+                        ? `${content.trim().slice(0, 117)}...`
+                        : content.trim();
+
+                    await Promise.all(
+                        recipientIds.map((recipientId) =>
+                            createAndPushNotification({
+                                recipient: recipientId,
+                                sender: socket.user._id,
+                                type: "message",
+                                title: socket.user.fullname || socket.user.username,
+                                message: notificationMessage,
+                                conversation: conversation._id,
+                                relatedMessage: message._id,
+                            })
+                        )
+                    );
+
+                    // Realtime message event stays unchanged.
                     const socketMessage =
                         populatedMessage.toObject();
 
@@ -685,6 +708,32 @@ const initializeSocket = (io) => {
                             "Media message not found"
                         );
                     }
+
+                    const recipientIds = conversation.members
+                        .filter((member) => String(member) !== String(socket.user._id));
+
+                    const mediaLabel =
+                        message.type === "image"
+                            ? "Sent you an image"
+                            : message.type === "video"
+                                ? "Sent you a video"
+                                : message.type === "audio"
+                                    ? "Sent you an audio"
+                                    : "Sent you a file";
+
+                    await Promise.all(
+                        recipientIds.map((recipientId) =>
+                            createAndPushNotification({
+                                recipient: recipientId,
+                                sender: socket.user._id,
+                                type: "message",
+                                title: socket.user.fullname || socket.user.username,
+                                message: mediaLabel,
+                                conversation: conversation._id,
+                                relatedMessage: message._id,
+                            })
+                        )
+                    );
 
                     socket
                         .to(conversationId)

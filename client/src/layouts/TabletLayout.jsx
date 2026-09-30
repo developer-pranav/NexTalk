@@ -18,7 +18,22 @@ export default function TabletLayout() {
     const [toastMsg, setToastMsg] = useState("");
     const pathname = usePathname();
     const section = pathname === "/search" ? "search" : pathname === "/requests" ? "requests" : pathname === "/profile" ? "profile" : "chats";
+    const routeChatId = pathname.startsWith("/chat/")
+        ? decodeURIComponent(pathname.slice("/chat/".length))
+        : null;
     const activeContact = contacts.find((c) => c.id === activeChatId);
+
+    useEffect(() => {
+        if (!routeChatId) return;
+
+        const exists = contacts.some(
+            (c) => String(c.id) === String(routeChatId)
+        );
+
+        if (exists && String(activeChatId) !== String(routeChatId)) {
+            openChat(routeChatId);
+        }
+    }, [routeChatId, contacts, activeChatId, openChat]);
 
     useEffect(() => {
         if (!toastMsg) return;

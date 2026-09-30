@@ -11,13 +11,13 @@ function friendlyRegisterError(error) {
     const message = (error?.response?.data?.message || "").toLowerCase();
 
     if (status === 409) {
-        if (message.includes("email")) return { title: "Email already registered", message: "That email is already linked to a TalkVerse account." };
+        if (message.includes("email")) return { title: "Email already registered", message: "That email is already linked to a NexTalk account." };
         if (message.includes("username")) return { title: "Username already taken", message: "Try a different username — this one is already in use." };
         return { title: "Account already exists", message: "Those details are already registered. Try signing in instead." };
     }
     if (status === 400) return { title: "Check your details", message: "Please fill in all required fields correctly." };
-    if (status >= 500) return { title: "Server problem", message: "TalkVerse is having trouble right now. Please try again in a moment." };
-    if (!error?.response) return { title: "Can't reach TalkVerse", message: "Check that the server is running and try again." };
+    if (status >= 500) return { title: "Server problem", message: "NexTalk is having trouble right now. Please try again in a moment." };
+    if (!error?.response) return { title: "Can't reach NexTalk", message: "Check that the server is running and try again." };
     return { title: "Couldn't create account", message: error?.response?.data?.message || "Please check your details and try again." };
 }
 
@@ -53,7 +53,7 @@ export default function RegisterPage() {
         setLoading(true);
         try {
             await register({ username, fullname, email, gender: form.gender, password: form.password });
-            showToast("Your account is ready. Welcome to TalkVerse!", { type: "success", title: "Account created", duration: 2200 });
+            showToast("Your account is ready. Welcome to NexTalk!", { type: "success", title: "Account created", duration: 2200 });
             navigate(AUTH_ROUTES.HOME, { replace: true });
         } catch (error) {
             const friendly = friendlyRegisterError(error);
@@ -67,7 +67,7 @@ export default function RegisterPage() {
         <AuthLayout
             eyebrow="Get started"
             title="Create your account"
-            subtitle="Join TalkVerse and start connecting."
+            subtitle="Join NexTalk and start connecting."
         >
             <form onSubmit={submit} className="space-y-3.5">
                 <AuthField label="Full name" icon={UserRound} name="fullname" value={form.fullname} onChange={update} placeholder="Your name" autoComplete="name" />

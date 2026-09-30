@@ -13,7 +13,7 @@ export default function AuthLayout({ eyebrow, title, subtitle, children, footer 
                             <MessageCircle size={18} strokeWidth={2.2} />
                         </div>
                         <span className="text-[14px] font-semibold" style={{ color: "var(--text)" }}>
-                            TalkVerse
+                            NexTalk
                         </span>
                     </div>
 

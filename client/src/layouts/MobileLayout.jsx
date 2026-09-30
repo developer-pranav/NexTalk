@@ -24,7 +24,7 @@ function chatIdFromPath(path) {
 }
 
 export default function MobileLayout() {
-    const { contacts, activeChatId, openChat, closeChat, messagesByChat, unreadCounts, typingChatId, clearChat, toggleBlock, unfriend, pendingRequestsCount } = useChat();
+    const { contacts, activeChatId, openChat, closeChat, messagesByChat, unreadCounts, typingChatId, clearChat, toggleBlock, unfriend, toggleMute, pendingRequestsCount } = useChat();
     const [query, setQuery] = useState("");
     const [toastMsg, setToastMsg] = useState("");
     const [contextMenu, setContextMenu] = useState(null);
@@ -212,6 +212,7 @@ export default function MobileLayout() {
                             onClose={() => setContextMenu(null)}
                             onClearChat={clearChat}
                             onToggleBlock={toggleBlock}
+                            onToggleMute={toggleMute}
                             onUnfriend={unfriend}
                         />
                     )}
