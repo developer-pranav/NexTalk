@@ -37,7 +37,7 @@ function PersonPreview({
 }) {
     return (
         <div className="fixed inset-0 z-[100]">
-            {/* Backdrop */}
+            
             <button
                 type="button"
                 aria-label="Close profile"
@@ -50,7 +50,7 @@ function PersonPreview({
                 }}
             />
 
-            {/* Modal */}
+            
             <div
                 role="dialog"
                 aria-modal="true"
@@ -71,7 +71,7 @@ function PersonPreview({
                     boxShadow: "var(--shadow-lg)",
                 }}
             >
-                {/* Header */}
+                
                 <div
                     className="flex items-center justify-between px-5 py-4"
                     style={{
@@ -113,10 +113,10 @@ function PersonPreview({
                     </button>
                 </div>
 
-                {/* Content */}
+                
                 <div className="scroll-thin max-h-[calc(100vh-105px)] overflow-y-auto px-5 py-5">
 
-                    {/* Profile hero */}
+                    
                     <div
                         className="
                             relative
@@ -159,7 +159,7 @@ function PersonPreview({
                         </div>
                     </div>
 
-                    {/* About */}
+                    
                     <div
                         className="mt-4 rounded-[20px] px-4 py-3.5"
                         style={{
@@ -186,7 +186,7 @@ function PersonPreview({
                         </p>
                     </div>
 
-                    {/* Non-friend state */}
+                    
                     {!isFriend && !blocked && (
                         <>
                             <div
@@ -276,7 +276,7 @@ function PersonPreview({
                         </button>
                     )}
 
-                    {/* Friend state */}
+                    
                     {isFriend && (
                         <button
                             type="button"
@@ -364,10 +364,10 @@ export default function SearchPage({ onBack, onOpenChat }) {
         loadBlockedUsers();
 
         const syncBlockedUsers = () => loadBlockedUsers();
-        window.addEventListener("talkverse:blocklist-updated", syncBlockedUsers);
+        window.addEventListener("nextalk:blocklist-updated", syncBlockedUsers);
 
         return () => {
-            window.removeEventListener("talkverse:blocklist-updated", syncBlockedUsers);
+            window.removeEventListener("nextalk:blocklist-updated", syncBlockedUsers);
         };
     }, []);
 
@@ -434,8 +434,8 @@ export default function SearchPage({ onBack, onOpenChat }) {
         const map = new Map();
 
         connections.forEach((connection) => {
-            // getMyConnections returns formatted user objects with _id.
-            // Older responses may still contain sender/receiver fields.
+            
+            
             const senderId = connection.sender?._id || connection.sender;
             const receiverId = connection.receiver?._id || connection.receiver;
             const otherId = connection._id && !senderId && !receiverId
@@ -531,7 +531,7 @@ export default function SearchPage({ onBack, onOpenChat }) {
         try {
             setActionId(id);
             await blockUser(id);
-            window.dispatchEvent(new CustomEvent("talkverse:blocklist-updated", {
+            window.dispatchEvent(new CustomEvent("nextalk:blocklist-updated", {
                 detail: { userId: id, action: "block" },
             }));
             setBlockedIds((previous) => new Set([...previous, String(id)]));
@@ -554,7 +554,7 @@ export default function SearchPage({ onBack, onOpenChat }) {
         try {
             setActionId(id);
             await unblockUser(id);
-            window.dispatchEvent(new CustomEvent("talkverse:blocklist-updated", {
+            window.dispatchEvent(new CustomEvent("nextalk:blocklist-updated", {
                 detail: { userId: id, action: "unblock" },
             }));
             setBlockedIds((previous) => {
@@ -600,7 +600,7 @@ export default function SearchPage({ onBack, onOpenChat }) {
             className="flex h-full min-h-0 flex-col"
             style={{ background: "var(--bg)" }}
         >
-            {/* Search header */}
+            
             <div className="shrink-0 px-4 pb-3 pt-5">
                 <div className="flex items-center gap-3">
                     {onBack && (
@@ -681,7 +681,7 @@ export default function SearchPage({ onBack, onOpenChat }) {
                 </div>
             </div>
 
-            {/* Results */}
+            
             <div className="scroll-thin min-h-0 flex-1 overflow-y-auto px-4 pb-32">
                 {loading ? (
                     <div className="pt-12 text-center text-[13px]" style={{ color: "var(--text-muted)" }}>
@@ -853,7 +853,7 @@ export default function SearchPage({ onBack, onOpenChat }) {
                 )}
             </div>
 
-            {/* Profile popup */}
+            
             {selectedPerson && (
                 <PersonPreview
                     person={selectedPerson}

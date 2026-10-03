@@ -101,7 +101,7 @@ export default function NewGroupPopup({
 
     return (
         <div className="fixed inset-0 z-50">
-            {/* Overlay */}
+            
             <div
                 className={`absolute inset-0 ${closing
                         ? "anim-modal-backdrop-out"
@@ -111,7 +111,7 @@ export default function NewGroupPopup({
                 onClick={handleClose}
             />
 
-            {/* Center / fullscreen modal */}
+            
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-0 md:p-4">
                 <div
                     className={`pointer-events-auto flex flex-col overflow-hidden ${closing
@@ -125,7 +125,7 @@ export default function NewGroupPopup({
                         border: "1px solid var(--border)",
                     }}
                 >
-                    {/* HEADER */}
+                    
                     <div
                         className="flex shrink-0 items-center justify-between px-5 py-4"
                         style={{
@@ -152,7 +152,7 @@ export default function NewGroupPopup({
                         </button>
                     </div>
 
-                    {/* SEARCH */}
+                    
                     <div className="shrink-0 px-5 pt-4">
                         <div
                             className="flex items-center gap-2 rounded-2xl px-3.5 py-2.5"
@@ -194,7 +194,7 @@ export default function NewGroupPopup({
                         )}
                     </div>
 
-                    {/* PEOPLE */}
+                    
                     <div className="scroll-thin flex-1 overflow-y-auto px-5 py-3">
                         {filtered.length === 0 ? (
                             <p
@@ -283,7 +283,7 @@ export default function NewGroupPopup({
                         )}
                     </div>
 
-                    {/* FOOTER */}
+                    
                     <div
                         className="shrink-0 px-5 pb-5 pt-2"
                         style={{

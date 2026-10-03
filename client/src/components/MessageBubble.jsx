@@ -20,12 +20,8 @@ import {
 const LONG_PRESS_MS = 450;
 const LONG_PRESS_MOVE_TOLERANCE = 10;
 
-/* -------------------------------------------------------------------------- */
-/*  Media UI (thumbnails, audio card, lightbox, video player)                 */
-/*  All styling lives in index.css under the `tv-` prefix.                    */
-/* -------------------------------------------------------------------------- */
 
-const VIEWER_CLOSE_MS = 220; // keep in sync with .tv-viewer transitions
+const VIEWER_CLOSE_MS = 220;
 const CONTROLS_IDLE_MS = 2600;
 
 function formatDuration(seconds) {
@@ -42,21 +38,17 @@ function prefersReducedMotion() {
     return typeof window !== "undefined" && Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
 }
 
-// Ask the browser to decode an early frame so <video> thumbnails aren't blank (iOS Safari).
+
 function withPosterFrame(url) {
     return typeof url === "string" && !url.includes("#") ? `${url}#t=0.1` : url;
 }
 
 const stopEvent = (e) => e.stopPropagation();
 
-// Only one audio message plays at a time.
+
 let activeAudio = null;
 
-/**
- * Mirrors a <audio>/<video> element into React state. State is derived from the
- * element's own events, so it stays correct when playback is changed elsewhere
- * (another player starting, ended, OS media keys, errors...).
- */
+
 function useMediaElement(ref, { exclusive = false, resetOnEnd = false } = {}) {
     const [playing, setPlaying] = useState(false);
     const [current, setCurrent] = useState(0);
@@ -76,7 +68,6 @@ function useMediaElement(ref, { exclusive = false, resetOnEnd = false } = {}) {
             if (Number.isFinite(d)) {
                 setDuration(d);
             } else if (d === Infinity && !probing) {
-                // Some containers (streamed webm etc.) report Infinity until scanned to the end.
                 probing = true;
                 const restore = () => {
                     el.removeEventListener("timeupdate", restore);
@@ -126,7 +117,7 @@ function useMediaElement(ref, { exclusive = false, resetOnEnd = false } = {}) {
         el.addEventListener("volumechange", onVolume);
         el.addEventListener("error", onError);
 
-        // Metadata may already be available (cached media) before listeners attach.
+
         if (el.readyState >= 1) onMeta();
         onVolume();
 
@@ -186,7 +177,7 @@ function useMediaElement(ref, { exclusive = false, resetOnEnd = false } = {}) {
     return { playing, current, duration, volume, muted, failed, toggle, seekRatio, seekBy, changeVolume, toggleMute };
 }
 
-/** Styled <input type="range"> (value / onChange work in 0-100). */
+
 function RangeBar({ value, onChange, label, valueText, className = "" }) {
     const pct = Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0;
     return (
@@ -197,7 +188,6 @@ function RangeBar({ value, onChange, label, valueText, className = "" }) {
             step="any"
             value={pct}
             onChange={(e) => onChange(Number(e.target.value))}
-            // keep the long-press "message menu" timer from firing while scrubbing
             onTouchStart={stopEvent}
             className={`tv-range ${className}`}
             style={{ "--p": `${pct}%` }}
@@ -231,7 +221,7 @@ function VolumeControl({ media, label, buttonClass }) {
     );
 }
 
-/* ------------------------------ Audio message ------------------------------ */
+
 
 function AudioPlayer({ src, isMe, footer }) {
     const audioRef = useRef(null);
@@ -240,7 +230,7 @@ function AudioPlayer({ src, isMe, footer }) {
 
     return (
         <div className={`tv-audio ${isMe ? "tv-audio-me" : ""} ${media.failed ? "is-failed" : ""}`}>
-            {/* no `controls` attribute: the native browser UI is never shown */}
+            
             <audio ref={audioRef} src={src} preload="metadata" />
             <div className="tv-audio-grid">
                 <button
@@ -274,7 +264,7 @@ function AudioPlayer({ src, isMe, footer }) {
     );
 }
 
-/* ------------------------- Image / video thumbnail -------------------------- */
+
 
 function MediaThumb({ kind, media, onOpen, overlay }) {
     const isVideo = kind === "video";
@@ -337,7 +327,7 @@ function MediaThumb({ kind, media, onOpen, overlay }) {
     );
 }
 
-/* ------------------------------ Video player ------------------------------- */
+
 
 function VideoPlayer({ src }) {
     const wrapRef = useRef(null);
@@ -346,9 +336,9 @@ function VideoPlayer({ src }) {
     const hiddenRef = useRef(false);
     const pressRef = useRef({ hidden: false, touch: false });
     const media = useMediaElement(videoRef);
-    const mediaRef = useRef(media); // latest controller for the (stable) keyboard listener
+    const mediaRef = useRef(media); 
     const [ratio, setRatio] = useState(16 / 9);
-    const [activity, setActivity] = useState(0); // bumped on pointer / keyboard activity
+    const [activity, setActivity] = useState(0); 
     const [idleKey, setIdleKey] = useState(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -357,14 +347,14 @@ function VideoPlayer({ src }) {
         (document.fullscreenEnabled ||
             (typeof HTMLVideoElement !== "undefined" && "webkitEnterFullscreen" in HTMLVideoElement.prototype));
 
-    // Controls fade out while playing and nothing has happened for a while. "Hidden" is derived:
-    // the idle timer records the activity key it was started for, and any activity (or a
-    // play/pause change) produces a new key, which shows the controls again.
+    
+    
+    
     const activityKey = `${activity}:${media.playing}`;
 
     const poke = useCallback(() => {
         const now = performance.now();
-        if (now - lastPokeRef.current < 200) return; // pointermove fires a lot; don't re-render for each
+        if (now - lastPokeRef.current < 200) return; 
         lastPokeRef.current = now;
         setActivity((n) => n + 1);
     }, []);
@@ -379,7 +369,7 @@ function VideoPlayer({ src }) {
         mediaRef.current = media;
     });
 
-    // Opening a video is a user gesture, so start playing right away.
+    
     useEffect(() => {
         videoRef.current?.play().catch(() => { });
     }, []);
@@ -392,7 +382,7 @@ function VideoPlayer({ src }) {
         } else if (wrap?.requestFullscreen) {
             wrap.requestFullscreen().catch(() => { });
         } else if (video?.webkitEnterFullscreen) {
-            video.webkitEnterFullscreen(); // iPhone Safari only supports fullscreen on the <video> itself
+            video.webkitEnterFullscreen(); 
         }
     }, []);
 
@@ -406,7 +396,7 @@ function VideoPlayer({ src }) {
         };
     }, []);
 
-    // Keyboard: space/k play, ←/→ seek, ↑/↓ volume, m mute, f fullscreen (Esc is handled by the viewer).
+    
     useEffect(() => {
         const onKey = (e) => {
             if (e.metaKey || e.ctrlKey || e.altKey) return;
@@ -457,8 +447,8 @@ function VideoPlayer({ src }) {
             className="tv-player"
             data-idle={controlsHidden}
             style={{ "--ratio": ratio }}
-            // Wake the controls on move / release (not on press) so a click never changes
-            // target halfway through the gesture when hidden controls reappear under it.
+            
+            
             onPointerMove={poke}
             onPointerUp={poke}
             onPointerDown={(e) => {
@@ -476,7 +466,7 @@ function VideoPlayer({ src }) {
                     if (w && h) setRatio(Math.min(4, Math.max(0.3, w / h)));
                 }}
                 onClick={() => {
-                    // On touch, the first tap while the controls are hidden only reveals them.
+                    
                     if (pressRef.current.hidden && pressRef.current.touch) {
                         poke();
                         return;
@@ -545,14 +535,9 @@ function VideoPlayer({ src }) {
     );
 }
 
-/* ------------------------- Lightbox (image + video) ------------------------- */
 
-/**
- * Rendered through a portal into <body>. It must not live inside the message row:
- * rows carry `transform`s (bubble-in animation, list rubber-banding) which would
- * turn `position: fixed` into "fixed relative to the row" and let the composer
- * and header paint over it.
- */
+
+
 function MediaViewer({ media, type, origin, onClose }) {
     const rootRef = useRef(null);
     const returnFocusRef = useRef(null);
@@ -568,21 +553,21 @@ function MediaViewer({ media, type, origin, onClose }) {
     const requestClose = useCallback(() => {
         if (closingRef.current) return;
         closingRef.current = true;
-        setOpen(false); // runs the fade + scale-out transition
+        setOpen(false); 
         closeTimerRef.current = window.setTimeout(
             () => onCloseRef.current?.(),
             prefersReducedMotion() ? 0 : VIEWER_CLOSE_MS
         );
     }, []);
 
-    // Mount: lock scroll, move focus in, then flip to the "open" state for the transition.
+    
     useEffect(() => {
         const root = rootRef.current;
         if (!returnFocusRef.current) returnFocusRef.current = document.activeElement;
         const prevOverflow = document.body.style.overflow;
         document.body.style.overflow = "hidden";
 
-        root?.getBoundingClientRect(); // flush the closed styles so the transition actually runs
+        root?.getBoundingClientRect(); 
         const raf = requestAnimationFrame(() => setOpen(true));
         root?.focus({ preventScroll: true });
 
@@ -594,7 +579,7 @@ function MediaViewer({ media, type, origin, onClose }) {
         };
     }, []);
 
-    // Esc closes; Tab stays inside the dialog.
+    
     useEffect(() => {
         const onKey = (e) => {
             if (e.key === "Escape") {
@@ -639,7 +624,7 @@ function MediaViewer({ media, type, origin, onClose }) {
                 e.stopPropagation();
                 requestClose();
             }}
-            // React events bubble through portals to the message row's ancestors; keep them contained.
+            
             onTouchStart={stopEvent}
             onTouchMove={stopEvent}
             onTouchEnd={stopEvent}
@@ -715,13 +700,13 @@ export default function MessageBubble({ message, showAuthor, animate, onMenu, on
     const isVisualMedia = isImage || isVideo;
     const isMediaBubble = isVisualMedia || isAudio;
     const hasHeader = !message.deleted && Boolean(message.forwarded || message.replyTo || (showAuthor && message.author));
-    // A media message with no reply/forward/author header is shown "frameless" (no bubble chrome).
+    
     const isFrameless = isMediaBubble && !hasHeader;
 
     const openViewer = (type) => (e) => {
-        if (selectMode) return; // in selection mode a tap toggles selection (handled by the bubble)
+        if (selectMode) return; 
         if (longPressFiredRef.current) {
-            longPressFiredRef.current = false; // this tap ended a long-press that already opened the menu
+            longPressFiredRef.current = false; 
             return;
         }
         const rect = e.currentTarget.getBoundingClientRect();
@@ -732,7 +717,7 @@ export default function MessageBubble({ message, showAuthor, animate, onMenu, on
         });
     };
 
-    // Timestamp / edited / status cluster, reused by every layout below.
+    
     const metaContent = (
         <>
             {message.edited && !message.deleted && (
@@ -861,7 +846,7 @@ export default function MessageBubble({ message, showAuthor, animate, onMenu, on
                 )}
                 {isVisualMedia && (
                     <MediaThumb
-                        key={message.media.url} // remount (clears the "failed" state) if the url changes
+                        key={message.media.url} 
                         kind={isVideo ? "video" : "image"}
                         media={message.media}
                         onOpen={openViewer(isVideo ? "video" : "image")}

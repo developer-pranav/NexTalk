@@ -97,7 +97,7 @@ export default function RequestsPage({ onBack }) {
             setBusyId(request._id || request.id);
             await blockUser(userId);
             setRequests((previous) => previous.filter((item) => (item._id || item.id) !== (request._id || request.id)));
-            window.dispatchEvent(new Event("talkverse:requests-updated"));
+            window.dispatchEvent(new Event("nextalk:requests-updated"));
             setSelectedRequest(null);
             showToast("User blocked successfully", { type: "success" });
         } catch (error) {
@@ -112,12 +112,12 @@ export default function RequestsPage({ onBack }) {
             setBusyId(requestId);
             if (action === "accept") {
                 await acceptFriendRequest(requestId);
-                window.dispatchEvent(new Event("talkverse:conversations-updated"));
+                window.dispatchEvent(new Event("nextalk:conversations-updated:requests-updated"));
             } else {
                 await rejectFriendRequest(requestId);
             }
             setRequests((prev) => prev.filter((item) => (item._id || item.id) !== requestId));
-            window.dispatchEvent(new Event("talkverse:requests-updated"));
+            window.dispatchEvent(new Event("nextalk:requests-updated"));
             setSelectedRequest(null);
             showToast(action === "accept" ? "Friend request accepted" : "Friend request declined", { type: "success" });
         } catch (error) {

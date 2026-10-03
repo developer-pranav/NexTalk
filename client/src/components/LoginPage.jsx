@@ -97,8 +97,7 @@ export default function LoginPage() {
                 password: signupForm.password,
             });
 
-            // Registration already authenticates the user on the server.
-            // AuthContext sets the returned user, so App immediately opens Home.
+
             setSignupForm(initialSignup);
         } catch (err) {
             notify(
@@ -253,7 +252,7 @@ export default function LoginPage() {
                             <button
                                 type="button"
                                 onClick={() => switchMode("login")}
-                                className="font-semibold hover:opacity-80"
+                                className="font-semibold hover:opacity-80 cursor-pointer"
                                 style={{ color: "var(--accent)" }}
                             >
                                 Sign in
@@ -304,7 +303,7 @@ export default function LoginPage() {
                             <button
                                 type="button"
                                 onClick={() => notify("Password reset will be available soon.")}
-                                className="text-[12px] font-medium hover:opacity-80"
+                                className="text-[12px] font-medium hover:opacity-80 cursor-pointer"
                                 style={{ color: "var(--accent)" }}
                             >
                                 Forgot password?
@@ -324,7 +323,7 @@ export default function LoginPage() {
                         <button
                             type="button"
                             onClick={() => notify("Google sign-in is not connected yet.")}
-                            className="h-[50px] w-full rounded-xl border text-[14px] font-medium transition-opacity hover:opacity-80"
+                            className="h-[50px] w-full rounded-xl border text-[14px] font-medium transition-opacity hover:opacity-80 cursor-pointer"
                             style={{
                                 borderColor: "var(--border)",
                                 background: "var(--bg)",
@@ -339,7 +338,7 @@ export default function LoginPage() {
                             <button
                                 type="button"
                                 onClick={() => switchMode("signup")}
-                                className="font-semibold hover:opacity-80"
+                                className="font-semibold hover:opacity-80 cursor-pointer"
                                 style={{ color: "var(--accent)" }}
                             >
                                 Create account

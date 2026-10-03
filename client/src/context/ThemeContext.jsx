@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from "react";
 
 const ThemeContext = createContext(null);
-const STORAGE_KEY = "chat-theme-preference"; // "system" | "light" | "dark"
+const STORAGE_KEY = "chat-theme-preference"; 
 
 function getSystemTheme() {
     if (typeof window === "undefined") return "light";

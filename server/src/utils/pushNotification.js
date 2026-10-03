@@ -9,7 +9,7 @@ function configureWebPush() {
     const publicKey = process.env.VAPID_PUBLIC_KEY;
     const privateKey = process.env.VAPID_PRIVATE_KEY;
     const subject =
-        process.env.VAPID_SUBJECT || "mailto:admin@talkverse.local";
+        process.env.VAPID_SUBJECT || "mailto:developer.pranav3306@gmail.com";
 
     if (!publicKey || !privateKey) {
         console.warn(
@@ -33,7 +33,7 @@ export const getVapidPublicKey = () =>
     process.env.VAPID_PUBLIC_KEY || null;
 
 
-// Send system push notification
+
 export const sendPushNotification = async (
     userId,
     payload,
@@ -49,7 +49,7 @@ export const sendPushNotification = async (
         return;
     }
 
-    // Do not send system notification if this sender is muted.
+    
     if (
         senderId &&
         user.mutedNotificationUsers?.some(
@@ -92,7 +92,7 @@ export const sendPushNotification = async (
         )
     );
 
-    // Remove expired subscriptions
+    
     if (staleEndpoints.length > 0) {
         await User.updateOne(
             { _id: userId },
@@ -110,7 +110,7 @@ export const sendPushNotification = async (
 };
 
 
-// Create DB notification + send system notification
+
 export const createAndPushNotification = async ({
     recipient,
     sender = null,

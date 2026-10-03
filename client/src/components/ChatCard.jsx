@@ -2,9 +2,6 @@ import Avatar from "./Avatar";
 import { BellOff } from "lucide-react";
 
 export default function ChatCard({ contact, unread, isTyping, lastMessage, onSelect, onContextMenu, delay = 0, active = false }) {
-    // Chat list can be rendered before this conversation is opened, so the
-    // in-memory messages array may be empty. Fall back to the persisted
-    // Conversation.lastMessage supplied by GET /conversations.
     const displayLastMessage = lastMessage || (contact.lastMessage ? {
         text: contact.lastMessage,
         time: contact.lastMessageTime,

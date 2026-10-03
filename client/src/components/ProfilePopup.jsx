@@ -43,7 +43,7 @@ export default function ProfilePopup({
 
     return (
         <div className="fixed inset-0 z-50">
-            {/* Overlay */}
+            
             <div
                 className={`absolute inset-0 ${closing
                         ? "anim-modal-backdrop-out"
@@ -53,7 +53,7 @@ export default function ProfilePopup({
                 onClick={onClose}
             />
 
-            {/* Center container */}
+            
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-0 md:p-4">
                 <div
                     className={`pointer-events-auto flex flex-col overflow-hidden ${closing ? "anim-modal-out" : "anim-modal-in"

@@ -10,9 +10,9 @@ const uploadOnCloudinary = async (localFilePath, folder) => {
 
         console.log("Uploading file to Cloudinary:", localFilePath);
 
-        // Cloudinary's `auto` resource type can reject some non-media
-        // document MIME types (e.g. application/json). Upload those as
-        // raw resources while keeping images/videos/audio on auto.
+        
+        
+        
         const extension = localFilePath.split(".").pop()?.toLowerCase();
         const rawExtensions = new Set([
             "json", "pdf", "txt", "csv", "doc", "docx", "xls", "xlsx",
@@ -22,24 +22,24 @@ const uploadOnCloudinary = async (localFilePath, folder) => {
 
         const resourceType = rawExtensions.has(extension) ? "raw" : "auto";
 
-        // Cloudinary's raw uploader is the most reliable path for arbitrary
-        // documents such as JSON. `upload_large` also preserves the raw
-        // resource type automatically and avoids format-detection issues.
+        
+        
+        
         const response = resourceType === "raw"
             ? await cloudinary.uploader.upload_large(localFilePath, {
-                folder: folder || "TalkVerse/Avatar",
+                folder: folder || "NexTalk/Avatar",
                 resource_type: "raw",
                 use_filename: true,
                 unique_filename: true,
             })
             : await cloudinary.uploader.upload(localFilePath, {
-                folder: folder || "TalkVerse/Avatar",
+                folder: folder || "NexTalk/Avatar",
                 resource_type: resourceType,
             });
 
         console.log("Cloudinary upload successful:", response.secure_url);
 
-        // Delete temporary file after successful upload
+        
         if (fs.existsSync(localFilePath)) {
             fs.unlinkSync(localFilePath);
         }
@@ -49,7 +49,7 @@ const uploadOnCloudinary = async (localFilePath, folder) => {
         console.error("ACTUAL CLOUDINARY ERROR:", error);
         console.error("Error message:", error.message);
 
-        // Delete temporary file after failed upload
+        
         if (localFilePath && fs.existsSync(localFilePath)) {
             fs.unlinkSync(localFilePath);
         }
@@ -97,7 +97,41 @@ const deleteFromCloudinary = async (publicId, resourceType = "image") => {
     }
 };
 
+const uploadBufferToCloudinary = async (buffer, folder, options = {}) => {
+    try {
+        if (!buffer || !Buffer.isBuffer(buffer) || !buffer.length) {
+            console.error("No image buffer provided for Cloudinary upload");
+            return null;
+        }
+
+        const dataUri = `data:${options.mimeType || "image/jpeg"};base64,${buffer.toString(
+            "base64"
+        )}`;
+
+        const response = await cloudinary.uploader.upload(dataUri, {
+            folder: folder || "NexTalk/Avatar",
+            resource_type: "image",
+            transformation: options.transformation,
+        });
+
+        console.log(
+            "Cloudinary buffer upload successful:",
+            response.secure_url
+        );
+
+        return response;
+    } catch (error) {
+        console.error(
+            "Cloudinary buffer upload error:",
+            error.message
+        );
+
+        return null;
+    }
+};
+
 export {
     uploadOnCloudinary,
     deleteFromCloudinary,
+    uploadBufferToCloudinary
 };

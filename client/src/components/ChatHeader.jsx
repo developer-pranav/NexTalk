@@ -21,7 +21,7 @@ export default function ChatHeader({ contact, onBack, typing, onOpenContactProfi
   return (
     <div className="px-3 pt-3 pb-2 sm:px-5">
       <div className="flex items-center justify-between gap-2">
-        {/* Identity capsule */}
+        
         <button
           onClick={() => onOpenContactProfile?.(contact)}
           className="flex min-h-14 min-w-0 items-center gap-3 rounded-full py-2 pl-2 pr-5 text-left transition-colors hover:bg-[var(--surface-hover)]"
@@ -63,7 +63,7 @@ export default function ChatHeader({ contact, onBack, typing, onOpenContactProfi
           </div>
         </button>
 
-        {/* Actions capsule */}
+        
         <div
           className="flex h-14 shrink-0 items-center gap-0.5 rounded-full p-1"
           style={{ background: "var(--surface)", boxShadow: "var(--shadow-sm)", border: "1px solid var(--border)" }}

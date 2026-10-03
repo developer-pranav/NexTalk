@@ -8,7 +8,7 @@ const config = {
 };
 
 export default function Toast({ toast, onClose, message, position = "bottom-center", type = "default" }) {
-    // Backward compatibility for existing chat/layout notifications.
+    
     if (!toast && message) {
         const legacy = config[type] || config.default;
         const LegacyIcon = legacy.Icon;

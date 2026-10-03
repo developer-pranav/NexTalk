@@ -207,7 +207,7 @@ const sendMessage = asyncHandler(async (req, res) => {
         );
     }
 
-    // Check block only for direct conversations
+    
     if (conversation.type === "direct") {
 
         const otherUser = conversation.members.find(
@@ -288,8 +288,8 @@ const deleteMessage = asyncHandler(async (req, res) => {
         );
     }
 
-    // Delete media from Cloudinary if no other active
-    // message is using the same asset.
+    
+    
     if (message.media?.publicId) {
         const mediaStillInUse = await Message.exists({
             _id: { $ne: message._id },
@@ -305,7 +305,7 @@ const deleteMessage = asyncHandler(async (req, res) => {
         }
     }
 
-    // Soft-delete the message.
+    
     await Message.findByIdAndUpdate(messageId, {
         $set: {
             deleted: true,
@@ -318,7 +318,7 @@ const deleteMessage = asyncHandler(async (req, res) => {
         },
     });
 
-    // Existing last-message handling stays exactly the same.
+    
     const conversation = await Conversation.findById(
         message.conversation
     );
@@ -434,8 +434,8 @@ const sendMediaMessage = asyncHandler(async (req, res) => {
     } else if (req.file.mimetype.startsWith("audio/")) {
         messageType = "audio";
     } else {
-        // Generic file uploads are intentionally disabled for now.
-        // Keep the chat media surface limited to images, videos and audio.
+        
+        
         throw new ApiError(400, "Only images, videos and audio are supported");
     }
 

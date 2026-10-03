@@ -1,6 +1,7 @@
 import { Bell, MessageSquare, Search } from "lucide-react";
 import Avatar from "./Avatar";
 import { useAuth } from "../context/AuthContext";
+import Logo from "./Logo.jsx"
 
 export default function IconRail({ active = "chats", onChangeTab, onOpenProfile, requestCount = 0 }) {
     const { user } = useAuth();
@@ -12,7 +13,7 @@ export default function IconRail({ active = "chats", onChangeTab, onOpenProfile,
 
     return (
         <div className="flex h-full w-20 shrink-0 flex-col items-center justify-between py-5">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-2xl text-[15px] font-semibold" style={{ background: "var(--accent)", color: "var(--accent-text)", boxShadow: "var(--shadow-sm)" }}>C</div>
+            <Logo size={50}/>
             <div className="flex flex-col items-center gap-2 rounded-full px-2 py-3" style={{ background: "var(--surface)", boxShadow: "var(--shadow-md)", border: "1px solid var(--border)" }}>
                 {items.map(({ key, label, icon: Icon }) => {
                     const isActive = active === key;

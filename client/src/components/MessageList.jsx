@@ -54,7 +54,7 @@ export default function MessageList({ chatId, messages, isGroup, onNotify, onRep
     const prevMessageCountRef = useRef(messages.length);
     const wasPrependingRef = useRef(false);
     const [pullArmed, setPullArmed] = useState(false);
-    const [menu, setMenu] = useState(null); // { message, x, y } | null
+    const [menu, setMenu] = useState(null); 
     const [selectedIds, setSelectedIds] = useState([]);
     const [forwardingMessage, setForwardingMessage] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
@@ -69,12 +69,12 @@ export default function MessageList({ chatId, messages, isGroup, onNotify, onRep
 
     useRubberband(scrollRef, contentRef);
 
-    // Reset scroll to bottom whenever the open chat changes.
+    
     useEffect(() => {
         const el = scrollRef.current;
         if (el) el.scrollTop = el.scrollHeight;
         prevMessageCountRef.current = messages.length;
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        
     }, [chatId]);
 
     const handleScroll = () => {
@@ -89,8 +89,8 @@ export default function MessageList({ chatId, messages, isGroup, onNotify, onRep
         }
     };
 
-    // Preserve scroll position after older messages are prepended; otherwise
-    // (new message sent/received) stick to the bottom.
+    
+    
     useLayoutEffect(() => {
         const el = scrollRef.current;
         if (!el) return;
@@ -265,11 +265,7 @@ export default function MessageList({ chatId, messages, isGroup, onNotify, onRep
 
                     onSelect={() => handleSelect(menu.message)}
 
-                    /*
-                     * Copy + Edit are text-message actions only.
-                     * Media messages: image/video/audio/voice/file
-                     * will not show these options.
-                     */
+                    
                     canCopy={
                         !menu.message.deleted &&
                         (!menu.message.type || menu.message.type === "text")

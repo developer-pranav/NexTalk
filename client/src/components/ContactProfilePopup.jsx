@@ -122,7 +122,7 @@ function SharedModal({ open, items, onClose }) {
                     boxShadow: "var(--shadow-lg)",
                 }}
             >
-                {/* Header */}
+                
                 <div
                     className="flex shrink-0 items-center gap-3 px-5 py-4"
                     style={{ borderBottom: "1px solid var(--border)" }}
@@ -168,7 +168,7 @@ function SharedModal({ open, items, onClose }) {
                     </button>
                 </div>
 
-                {/* Tabs */}
+                
                 <div className="flex gap-2 px-5 py-3">
                     {[
                         ["all", "All"],
@@ -196,7 +196,7 @@ function SharedModal({ open, items, onClose }) {
                     ))}
                 </div>
 
-                {/* Content */}
+                
                 <div className="scroll-thin flex-1 overflow-y-auto px-5 pb-5">
                     {filtered.length === 0 ? (
                         <div className="flex min-h-[240px] flex-col items-center justify-center text-center">
@@ -388,7 +388,7 @@ export default function ContactProfilePopup({
     return (
         <>
             <div className="fixed inset-0 z-50">
-                {/* Backdrop */}
+                
                 <div
                     className="absolute inset-0 anim-fade-in"
                     style={{
@@ -397,7 +397,7 @@ export default function ContactProfilePopup({
                     onClick={onClose}
                 />
 
-                {/* Profile */}
+                
                 <div
                     className="
                         anim-pop-in
@@ -412,7 +412,7 @@ export default function ContactProfilePopup({
                         border: "1px solid var(--border)",
                     }}
                 >
-                    {/* Header */}
+                    
                     <div
                         className="flex shrink-0 items-center justify-between px-5 py-4"
                         style={{
@@ -454,7 +454,7 @@ export default function ContactProfilePopup({
                     </div>
 
                     <div className="scroll-thin flex-1 overflow-y-auto px-5 py-5">
-                        {/* Profile card */}
+                        
                         <div
                             className="
                                 relative flex flex-col items-center
@@ -521,7 +521,7 @@ export default function ContactProfilePopup({
                             </div>
                         </div>
 
-                        {/* Group members */}
+                        
                         {contact.isGroup && (
                             <div className="mt-5">
                                 <div className="mb-2 flex items-center justify-between">
@@ -613,7 +613,7 @@ export default function ContactProfilePopup({
                             </div>
                         )}
 
-                        {/* Joined */}
+                        
                         {!contact.isGroup && (
                             <div className="mt-5">
                                 <p
@@ -642,7 +642,7 @@ export default function ContactProfilePopup({
                             </div>
                         )}
 
-                        {/* Shared */}
+                        
                         {!contact.isGroup && (
                             <div className="mt-5">
                                 <div className="mb-2 flex items-center justify-between">
@@ -786,7 +786,7 @@ export default function ContactProfilePopup({
                 </div>
             </div>
 
-            {/* Shared modal */}
+            
             <SharedModal
                 open={sharedOpen}
                 items={sharedItems}

@@ -32,7 +32,7 @@ export default function DesktopLayout() {
     };
 
     useEffect(() => {
-        // Keep desktop chat selection in sync with /chat/:id routes.
+        
         if (routeChatId && String(routeChatId) !== String(activeChatId)) {
             const exists = contacts.some((c) => String(c.id) === String(routeChatId));
             if (exists) openChat(routeChatId);

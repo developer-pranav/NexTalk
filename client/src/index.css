@@ -631,9 +631,9 @@ button {
     width: min(320px, 100%);
 }
 
-/* ---- Shared: icon buttons, time text, pills -------------------------------- */
+
 .tv-nudge {
-    /* optically centres the play triangle */
+    
     margin-left: 2px;
 }
 
@@ -673,7 +673,7 @@ button {
     outline-offset: 2px;
 }
 
-/* Pill drawn over a thumbnail (timestamp, duration) */
+
 .tv-chip {
     position: absolute;
     bottom: 8px;
@@ -701,9 +701,7 @@ button {
     left: 8px;
 }
 
-/* ---- Range slider (seek + volume) ------------------------------------------
-   Visual track is 4px; the input itself is taller so it's easy to hit.
-   `--p` (set inline) is the filled percentage. ------------------------------ */
+
 .tv-range {
     --p: 0%;
     --tv-fill: var(--accent);
@@ -720,7 +718,7 @@ button {
     background: transparent;
     cursor: pointer;
     outline: none;
-    touch-action: pan-y; /* horizontal drags scrub, vertical drags still scroll the chat */
+    touch-action: pan-y; 
 }
 
 .tv-range::-webkit-slider-runnable-track {
@@ -781,7 +779,7 @@ button {
     outline-offset: 1px;
 }
 
-/* ---- Volume group (mute button + slider) ----------------------------------- */
+
 .tv-vol {
     display: flex;
     align-items: center;
@@ -792,12 +790,10 @@ button {
     width: 56px;
 }
 
-/* ==========================================================================
-   Thumbnails (image + video preview inside a message)
-   ========================================================================== */
+
 .tv-thumb {
     position: relative;
-    isolation: isolate; /* keeps the rounded clip correct while children scale/blur */
+    isolation: isolate; 
     display: block;
     width: 100%;
     max-width: 100%;
@@ -808,7 +804,7 @@ button {
     color: #fff;
 }
 
-/* frameless media (no bubble around it): match the bubble's 16px corners */
+
 .tv-frameless .tv-thumb {
     border-radius: 16px;
 }
@@ -835,7 +831,7 @@ button {
     }
 }
 
-/* Transparent full-size button = the click / focus target */
+
 .tv-thumb-hit {
     position: absolute;
     inset: 0;
@@ -891,9 +887,7 @@ button {
     font-size: 12px;
 }
 
-/* ==========================================================================
-   Audio message card
-   ========================================================================== */
+
 .tv-audio {
     container-type: inline-size;
     container-name: tv-audio;
@@ -906,7 +900,7 @@ button {
     color: var(--text);
 }
 
-/* messages you sent get a soft accent tint so the two sides stay distinguishable */
+
 .tv-audio-me {
     border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
     background: color-mix(in srgb, var(--accent) 9%, var(--surface));
@@ -977,7 +971,7 @@ button {
     width: 52px;
 }
 
-/* very narrow bubbles: keep just the mute button */
+
 @container tv-audio (max-width: 210px) {
     .tv-audio-info .tv-vol-range {
         display: none;
@@ -995,12 +989,7 @@ button {
     line-height: 1.2;
 }
 
-/* ==========================================================================
-   Lightbox
-   Portalled to <body>. Open/close is transition-driven from [data-open]; the
-   component removes it after VIEWER_CLOSE_MS, so it can never get stuck
-   (even with prefers-reduced-motion).
-   ========================================================================== */
+
 .tv-viewer {
     position: fixed;
     inset: 0;
@@ -1024,8 +1013,7 @@ button {
     transition-duration: 260ms;
 }
 
-/* The stage fills the viewport, so --tv-ox/--tv-oy (the thumbnail's centre in
-   viewport px) make the content grow out of / shrink back into its thumbnail. */
+
 .tv-viewer-stage {
     position: absolute;
     inset: 0;
@@ -1106,11 +1094,9 @@ button {
     }
 }
 
-/* ==========================================================================
-   Video player (inside the lightbox)
-   ========================================================================== */
+
 .tv-player {
-    --ratio: 1.7778; /* real ratio is set from the video's metadata */
+    --ratio: 1.7778; 
     container-type: inline-size;
     container-name: tv-player;
     position: relative;
@@ -1193,7 +1179,7 @@ button {
     transform: translate(-50%, -50%);
 }
 
-/* Floating glass control bar */
+
 .tv-controls {
     position: absolute;
     right: 10px;
@@ -1262,7 +1248,7 @@ button {
     width: 76px;
 }
 
-/* phones: hardware keys handle volume, so keep only the mute button */
+
 @container tv-player (max-width: 460px) {
     .tv-controls .tv-vol-range {
         display: none;
@@ -1275,7 +1261,7 @@ button {
     }
 }
 
-/* Fullscreen: the player element itself goes fullscreen so the custom controls stay */
+
 .tv-player:fullscreen {
     width: 100vw;
     height: 100vh;
@@ -1292,8 +1278,7 @@ button {
     box-shadow: none;
 }
 
-/* ---- Reduced motion --------------------------------------------------------
-   No movement; the component still closes on a 0ms timer, so nothing sticks. */
+
 @media (prefers-reduced-motion: reduce) {
 
     .tv-viewer-backdrop,
@@ -1315,9 +1300,7 @@ button {
     }
 }
 
-/* ==========================================================================
-   Voice message recorder
-   ========================================================================== */
+
 
 .tv-mic-button {
     box-shadow: 0 5px 18px color-mix(in srgb, var(--accent) 24%, transparent);
@@ -1502,9 +1485,7 @@ button {
     }
 }
 
-/* ==========================================================================
-   Voice message v2 - compact recorder + animated audio waveform
-   ========================================================================== */
+
 .tv-recorder {
     width: min(100%, 760px);
     min-height: 66px;
@@ -1675,7 +1656,7 @@ button {
     border: 0 !important;
 }
 
-/* Incoming: line | text */
+
 .tv-reply-received .tv-reply-line {
     order: 1;
     margin-right: 7px;
@@ -1685,7 +1666,7 @@ button {
     order: 2;
 }
 
-/* Sent: text | line */
+
 .tv-reply-sent .tv-reply-body {
     order: 1;
 }

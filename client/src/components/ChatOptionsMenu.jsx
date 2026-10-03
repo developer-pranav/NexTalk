@@ -35,17 +35,17 @@ export default function ChatOptionsMenu({
                 }
             },
         },
-        // {
-        //     key: "clear",
-        //     label: "Clear chat",
-        //     icon: Eraser,
-        //     onClick: () => onRequestConfirm?.({
-        //         title: "Clear chat?",
-        //         message: `All messages with ${contact.name} will be permanently removed.`,
-        //         confirmLabel: "Clear chat",
-        //         action: () => { onClearChat(contact.id); onNotify?.("Chat cleared"); },
-        //     }),
-        // },
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        
         contact.isGroup
             ? {
                 key: "exit",

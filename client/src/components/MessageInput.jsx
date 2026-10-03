@@ -249,9 +249,9 @@ export default function MessageInput({
                 setRecordingTime((current) => current + 1);
             }, 1000);
 
-            // getUserMedia setup is complete; the controls must be interactive
-            // while the recorder is actively recording. recordingBusy is only
-            // used for the short send/stop transition.
+            
+            
+            
             setRecordingBusy(false);
         } catch (error) {
             cleanupRecording();

@@ -13,7 +13,7 @@ function resolve() {
     return "desktop";
 }
 
-/** Returns "mobile" | "tablet" | "desktop", updated live on resize. */
+
 export function useBreakpoint() {
     const [breakpoint, setBreakpoint] = useState(resolve);
 

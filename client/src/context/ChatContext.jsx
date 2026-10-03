@@ -1,8 +1,4 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import {
-    pickAutoReply,
-    AVATAR_PALETTE,
-} from "../data/dummyData";
 import { getMyConversations } from "../api/conversations";
 import { getMessages, deleteMessage as deleteMessageApi } from "../api/messages";
 import {
@@ -66,8 +62,8 @@ function mediaLabel(message) {
     return message.content || "";
 }
 
-// Maps a conversation returned by GET /conversations (or /conversations/:id)
-// into the "contact" shape the existing UI components already know how to render.
+
+
 function adaptConversation(conversation, myUserId, mutedUserIds = []) {
     const isGroup = conversation.type === "group";
 
@@ -121,8 +117,8 @@ function adaptConversation(conversation, myUserId, mutedUserIds = []) {
     };
 }
 
-// Maps a message returned by GET /messages/:conversationId into the shape
-// the existing MessageList / MessageBubble components already render.
+
+
 function adaptMessage(message, myUserId) {
     const senderId = message.sender?._id || message.sender;
     const isMe = String(senderId) === String(myUserId);
@@ -196,7 +192,7 @@ function adaptMessage(message, myUserId) {
     return adapted;
 }
 
-async function registerTalkVersePushNotifications() {
+async function registerNexTalkPushNotifications() {
     if (
         typeof window === "undefined" ||
         !("serviceWorker" in navigator) ||
@@ -292,9 +288,9 @@ export function ChatProvider({ children }) {
     const socketRef = useRef(null);
     const joinedChatRef = useRef(new Set());
     const onlineUserIdsRef = useRef(new Set());
-    // Messages can arrive over Socket.IO while the initial conversation list
-    // request is still in flight. Keep the latest socket message so a stale
-    // REST response cannot overwrite it with "No messages yet".
+    
+    
+    
     const latestSocketMessageRef = useRef(new Map());
 
     useEffect(() => {
@@ -305,7 +301,7 @@ export function ChatProvider({ children }) {
         activeChatIdRef.current = activeChatId;
     }, [activeChatId]);
 
-    // Friend request badge counter
+    
     useEffect(() => {
         if (!isAuthenticated || !user?._id) {
             setPendingRequestsCount(0);
@@ -335,16 +331,16 @@ export function ChatProvider({ children }) {
 
         loadPendingRequestsCount();
 
-        // Keep badge updated without Socket.IO changes.
+        
         const interval = setInterval(loadPendingRequestsCount, 15000);
 
-        // RequestsPage already dispatches this after accept/decline/block.
+        
         const handleRequestsUpdated = () => {
             loadPendingRequestsCount();
         };
 
         window.addEventListener(
-            "talkverse:requests-updated",
+            "nextalk:requests-updated",
             handleRequestsUpdated
         );
 
@@ -353,7 +349,7 @@ export function ChatProvider({ children }) {
             clearInterval(interval);
 
             window.removeEventListener(
-                "talkverse:requests-updated",
+                "nextalk:requests-updated",
                 handleRequestsUpdated
             );
         };
@@ -416,16 +412,16 @@ export function ChatProvider({ children }) {
         );
     }, [mutedNotificationUserIds]);
 
-    // Register this browser/device for system push notifications.
-    // The server stores the subscription against the logged-in user.
+    
+    
     useEffect(() => {
         if (!isAuthenticated || !user?._id) return;
 
-        registerTalkVersePushNotifications();
+        registerNexTalkPushNotifications();
     }, [isAuthenticated, user?._id]);
 
-    // Real-time Socket.IO connection. The server authenticates this socket
-    // from the same accessToken cookie used by the REST API.
+    
+    
     useEffect(() => {
         if (!isAuthenticated || !user?._id) {
             if (socketRef.current) {
@@ -449,8 +445,8 @@ export function ChatProvider({ children }) {
 
             const adapted = adaptMessage(rawMessage, user._id);
 
-            // Explicit delivery acknowledgement: the recipient's browser has
-            // actually received the message, even when that chat is closed.
+            
+            
             if (adapted.from !== "me" && adapted.id) {
                 socket.emit("markMessageDelivered", {
                     messageId: adapted.id,
@@ -465,7 +461,7 @@ export function ChatProvider({ children }) {
             setMessagesByChat((prev) => {
                 const current = prev[chatId] || [];
 
-                // Replace our optimistic clock message with the real DB message.
+                
                 if (rawMessage?.clientMessageId) {
                     const tempIndex = current.findIndex(
                         (message) =>
@@ -483,7 +479,7 @@ export function ChatProvider({ children }) {
                     }
                 }
 
-                // Existing duplicate protection
+                
                 if (
                     current.some(
                         (message) => String(message.id) === String(adapted.id)
@@ -498,8 +494,8 @@ export function ChatProvider({ children }) {
                 };
             });
 
-            // Only incoming messages create unread state. Your own message
-            // is echoed back by the private user room and must not increment it.
+            
+            
             if (adapted.from !== "me" && chatId !== activeChatIdRef.current) {
                 setUnreadCounts((prev) => ({ ...prev, [chatId]: (prev[chatId] || 0) + 1 }));
             }
@@ -554,8 +550,8 @@ export function ChatProvider({ children }) {
                 }),
             }));
 
-            // Keep the chat-list preview in sync when the deleted message was
-            // the conversation's persisted lastMessage.
+            
+            
             setContacts((prev) => prev.map((contact) => {
                 if (String(contact.id) !== String(conversationId)) return contact;
 
@@ -599,8 +595,8 @@ export function ChatProvider({ children }) {
                 ),
             }));
 
-            // If the edited message is the persisted conversation preview,
-            // update the chat list without opening the conversation.
+            
+            
             if (lastMessage && String(lastMessage._id) === String(messageId)) {
                 setContacts((prev) => prev.map((contact) =>
                     String(contact.id) === String(conversationId)
@@ -826,7 +822,7 @@ export function ChatProvider({ children }) {
         };
     }, [isAuthenticated, user?._id]);
 
-    // Load real conversations only after authentication is restored/created.
+    
     useEffect(() => {
         let cancelled = false;
 
@@ -923,8 +919,8 @@ export function ChatProvider({ children }) {
                             .filter((contact) => Number(contact.unreadCount || 0) > 0)
                             .map((contact) => [contact.id, Number(contact.unreadCount || 0)])
                     );
-                    // Preserve a just-arrived socket unread when the REST request
-                    // raced the message write and returned an older unread count.
+                    
+                    
                     for (const contact of merged) {
                         const pending = latestSocketMessageRef.current.get(String(contact.id));
                         if (pending && !pending.fromMe && String(contact.id) !== String(activeChatIdRef.current)) {
@@ -950,7 +946,7 @@ export function ChatProvider({ children }) {
         };
     }, [isAuthenticated, user?._id, mutedNotificationUserIds]);
 
-    // Refresh the chat list when a friend request is accepted elsewhere in the app.
+    
     useEffect(() => {
         const refreshConversations = async () => {
             if (!isAuthenticated || !user?._id) return;
@@ -987,8 +983,8 @@ export function ChatProvider({ children }) {
                             .filter((contact) => Number(contact.unreadCount || 0) > 0)
                             .map((contact) => [contact.id, Number(contact.unreadCount || 0)])
                     );
-                    // Preserve a just-arrived socket unread when the REST request
-                    // raced the message write and returned an older unread count.
+                    
+                    
                     for (const contact of merged) {
                         const pending = latestSocketMessageRef.current.get(String(contact.id));
                         if (pending && !pending.fromMe && String(contact.id) !== String(activeChatIdRef.current)) {
@@ -998,15 +994,15 @@ export function ChatProvider({ children }) {
                     return next;
                 });
             } catch {
-                // The regular loading effect handles the initial error state.
+                
             }
         };
 
-        window.addEventListener("talkverse:conversations-updated", refreshConversations);
-        return () => window.removeEventListener("talkverse:conversations-updated", refreshConversations);
+        window.addEventListener("nextalk:conversations-updated:requests-updated", refreshConversations);
+        return () => window.removeEventListener("nextalk:conversations-updated:requests-updated", refreshConversations);
     }, [isAuthenticated, user?._id]);
 
-    // Task 2: replace dummy messages with the real messages API (paginated fetch).
+    
     const fetchMessages = useCallback((chatId, { page = 1, append = false } = {}) => {
         setMessagesLoading((prev) => ({ ...prev, [chatId]: true }));
         setMessagesError((prev) => ({ ...prev, [chatId]: null }));
@@ -1014,7 +1010,7 @@ export function ChatProvider({ children }) {
         return getMessages(chatId, { page, limit: MESSAGES_PAGE_SIZE })
             .then((response) => {
                 const { messages: rawMessages, pagination } = response?.data || {};
-                // Server returns newest-first for pagination; UI expects oldest-first.
+                
                 const adapted = (rawMessages || [])
                     .map((m) => adaptMessage(m, currentUserIdRef.current))
                     .reverse();
@@ -1047,8 +1043,8 @@ export function ChatProvider({ children }) {
         setActiveChatId(chatId);
         setUnreadCounts((prev) => ({ ...prev, [chatId]: 0 }));
 
-        // Local-only groups (created client-side) aren't backed by a real
-        // conversation yet, so there's nothing to fetch for them.
+        
+        
         if (chatId.startsWith("group-")) return;
 
         if (socketRef.current && socketRef.current.connected && !joinedChatRef.current.has(chatId)) {
@@ -1111,8 +1107,8 @@ export function ChatProvider({ children }) {
             .toString(36)
             .slice(2, 8)}`;
 
-        // Show the message immediately. It stays as a clock/sending state
-        // until the server echoes the persisted message back through Socket.IO.
+        
+        
         const optimisticMessage = {
             id: clientMessageId,
             clientMessageId,
@@ -1146,9 +1142,9 @@ export function ChatProvider({ children }) {
             [chatId]: [...(prev[chatId] || []), optimisticMessage],
         }));
 
-        // The server should return the persisted message with the same
-        // clientMessageId. handleNewMessage() then replaces this clock
-        // message with the real message and its sent/delivered/read status.
+        
+        
+        
         socket.emit("sendMessage", {
             conversationId: chatId,
             content: trimmed,
@@ -1172,9 +1168,9 @@ export function ChatProvider({ children }) {
             const savedMessage = response?.data;
             if (!savedMessage?._id) throw new Error("Media message was not saved");
 
-            // The REST endpoint is the source of truth for the uploaded file.
-            // Add the persisted message locally immediately so the sender never
-            // depends on a Socket.IO acknowledgement to see their own voice/media.
+            
+            
+            
             const adapted = adaptMessage(
                 { ...savedMessage, conversation: chatId },
                 currentUserIdRef.current
@@ -1188,8 +1184,8 @@ export function ChatProvider({ children }) {
                 return { ...prev, [chatId]: [...current, adapted] };
             });
 
-            // Broadcast only to the other participants. The server deliberately
-            // uses socket.to(room), so the sender does not receive a duplicate.
+            
+            
             if (socketRef.current?.connected) {
                 socketRef.current.emit("broadcastMediaMessage", {
                     conversationId: chatId,
@@ -1276,12 +1272,12 @@ export function ChatProvider({ children }) {
         }));
 
         try {
-            // Persist the deletion through the REST endpoint. The server also
-            // removes the Cloudinary asset when it is no longer referenced.
+            
+            
             await deleteMessageApi(messageId);
 
-            // Keep the existing Socket.IO event untouched for compatibility
-            // with the current real-time deletion flow.
+            
+            
             socketRef.current?.emit("deleteMessage", {
                 conversationId: chatId,
                 messageId,
@@ -1307,7 +1303,7 @@ export function ChatProvider({ children }) {
             name: trimmed,
             online: false,
             isGroup: true,
-            members: memberIds.length + 1, // + you
+            members: memberIds.length + 1, 
             memberIds,
             initials: groupInitials(trimmed),
             color: AVATAR_PALETTE[Math.floor(Math.random() * AVATAR_PALETTE.length)],
@@ -1353,7 +1349,7 @@ export function ChatProvider({ children }) {
 
             const blocked = !wasBlockedByMe;
 
-            // Update my UI immediately after the DB operation succeeds.
+            
             setContacts((prev) =>
                 prev.map((c) => {
                     if (c.id !== chatId) return c;
@@ -1367,7 +1363,7 @@ export function ChatProvider({ children }) {
                 })
             );
 
-            // Tell the other user's connected client immediately.
+            
             if (socketRef.current?.connected) {
                 socketRef.current.emit("blockStatusChanged", {
                     targetUserId: contact.otherUserId,
@@ -1399,26 +1395,26 @@ export function ChatProvider({ children }) {
                 socketRef.current.emit("leaveConversation", chatId);
             }
 
-            // Remove the contact from my UI.
+            
             setContacts((prev) =>
                 prev.filter((c) => c.id !== chatId)
             );
 
-            // Remove the locally cached messages.
+            
             setMessagesByChat((prev) => {
                 const next = { ...prev };
                 delete next[chatId];
                 return next;
             });
 
-            // Remove unread count.
+            
             setUnreadCounts((prev) => {
                 const next = { ...prev };
                 delete next[chatId];
                 return next;
             });
 
-            // Close the chat if it is currently open.
+            
             setActiveChatId((current) =>
                 current === chatId ? null : current
             );
@@ -1530,7 +1526,7 @@ export function ChatProvider({ children }) {
             loadOlderMessages,
             refreshingChatId,
             hasMoreOlder: (chatId) => Boolean(messagePagination[chatId]?.hasMore),
-            // Minimal loading/error state for the real conversations + messages APIs.
+            
             currentUserId,
             contactsLoading,
             contactsError,

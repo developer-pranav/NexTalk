@@ -1,4 +1,4 @@
-import { MessageCircle } from "lucide-react";
+import NexTalkLogo from "../Logo";
 
 export default function AuthLayout({ eyebrow, title, subtitle, children, footer }) {
     return (
@@ -8,9 +8,8 @@ export default function AuthLayout({ eyebrow, title, subtitle, children, footer 
                     <div className="mb-5 flex items-center gap-2.5">
                         <div
                             className="grid h-9 w-9 place-items-center rounded-xl"
-                            style={{ background: "var(--accent-soft)", color: "var(--accent)" }}
                         >
-                            <MessageCircle size={18} strokeWidth={2.2} />
+                            <NexTalkLogo size={48} />
                         </div>
                         <span className="text-[14px] font-semibold" style={{ color: "var(--text)" }}>
                             NexTalk

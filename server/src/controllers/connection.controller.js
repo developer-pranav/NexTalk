@@ -8,7 +8,7 @@ import { ApiResponse } from "../utils/apiRes.js";
 import { deleteFromCloudinary } from "../utils/cloudinary.js";
 import { createAndPushNotification } from "../utils/pushNotification.js";
 
-// Send friend request
+
 const sendFriendRequest = asyncHandler(async (req, res) => {
     const { userId } = req.params;
 
@@ -126,7 +126,7 @@ const sendFriendRequest = asyncHandler(async (req, res) => {
     );
 });
 
-// Get received friend requests
+
 const getFriendRequests = asyncHandler(async (req, res) => {
     const requests = await Connection.find({
         receiver: req.user._id,
@@ -145,7 +145,7 @@ const getFriendRequests = asyncHandler(async (req, res) => {
     );
 });
 
-// Get all my connections and pending requests
+
 const getMyConnections = asyncHandler(async (req, res) => {
     const connections = await Connection.find({
         $or: [
@@ -190,7 +190,7 @@ const getMyConnections = asyncHandler(async (req, res) => {
     );
 });
 
-// Cancel a pending friend request
+
 const cancelFriendRequest = asyncHandler(async (req, res) => {
     const { requestId } = req.params;
 
@@ -218,7 +218,7 @@ const cancelFriendRequest = asyncHandler(async (req, res) => {
     );
 });
 
-// Accept friend request
+
 const acceptFriendRequest = asyncHandler(async (req, res) => {
     const { requestId } = req.params;
 
@@ -252,8 +252,8 @@ const acceptFriendRequest = asyncHandler(async (req, res) => {
 
     await request.save();
 
-    // Create the direct chat immediately after the request is accepted.
-    // The same conversation is shared by both users.
+    
+    
     let conversation = await Conversation.findOne({
         type: "direct",
         members: { $all: [request.sender, request.receiver] },
@@ -294,7 +294,7 @@ const acceptFriendRequest = asyncHandler(async (req, res) => {
     );
 });
 
-// Reject friend request
+
 const rejectFriendRequest = asyncHandler(async (req, res) => {
     const { requestId } = req.params;
 
@@ -337,7 +337,7 @@ const rejectFriendRequest = asyncHandler(async (req, res) => {
     );
 });
 
-// Block user
+
 const blockUser = asyncHandler(async (req, res) => {
     const { userId } = req.params;
 
@@ -410,7 +410,7 @@ const blockUser = asyncHandler(async (req, res) => {
     );
 });
 
-// Get blocked users
+
 const getBlockedUsers = asyncHandler(async (req, res) => {
     const blockedConnections = await Connection.find({
         status: "blocked",
@@ -448,7 +448,7 @@ const getBlockedUsers = asyncHandler(async (req, res) => {
     );
 });
 
-// Unblock user
+
 const unblockUser = asyncHandler(async (req, res) => {
     const { userId } = req.params;
 
@@ -514,7 +514,7 @@ const unfriendUser = asyncHandler(async (req, res) => {
         );
     }
 
-    // Find the existing friendship
+    
     const connection = await Connection.findOne({
         status: "friend",
         $or: [
@@ -536,7 +536,7 @@ const unfriendUser = asyncHandler(async (req, res) => {
         );
     }
 
-    // Find their direct conversation
+    
     const conversation = await Conversation.findOne({
         type: "direct",
         members: {
@@ -548,29 +548,17 @@ const unfriendUser = asyncHandler(async (req, res) => {
     });
 
     if (conversation) {
-        /*
-         * Get every message from this conversation before deleting it.
-         * We need the media publicIds so Cloudinary can also be cleaned.
-         */
+        
         const messages = await Message.find({
             conversation: conversation._id,
         }).select("media type");
 
-        /*
-         * Remove the conversation's messages from MongoDB.
-         */
+        
         await Message.deleteMany({
             conversation: conversation._id,
         });
 
-        /*
-         * Delete Cloudinary media only when the same publicId
-         * is NOT being used by any other message.
-         *
-         * This is important for forwarded media:
-         * original chat deleted ≠ Cloudinary file automatically deleted
-         * if another forwarded message still references it.
-         */
+        
         const mediaMap = new Map();
 
         for (const message of messages) {
@@ -609,25 +597,18 @@ const unfriendUser = asyncHandler(async (req, res) => {
             }
         }
 
-        /*
-         * Finally delete the conversation itself.
-         */
+        
         await Conversation.findByIdAndDelete(
             conversation._id
         );
     }
 
-    /*
-     * Delete the friendship.
-     *
-     * This allows either user to send a completely new
-     * friend request later.
-     */
+    
     await Connection.findByIdAndDelete(
         connection._id
     );
 
-    // Notify the other user so their chat/contact list updates immediately.
+    
     const io = req.app.get("io");
 
     if (io) {

@@ -17,7 +17,7 @@ const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
     cors: {
-        origin: "http://localhost:5173",
+        origin: process.env.CLIENT_URL || "http://localhost:5173",
         methods: ["GET", "POST"],
         credentials: true,
     },
@@ -29,7 +29,7 @@ initializeSocket(io);
 
 connectDB()
     .then(async () => {
-        // A process restart invalidates all old sockets, so clear stale presence.
+        
         const { User } = await import("./models/user.model.js");
         const { getRandomDefaultAvatar } = await import("./config/defaultAvatars.js");
 

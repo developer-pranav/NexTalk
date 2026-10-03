@@ -29,7 +29,7 @@ const createDirectConversation = asyncHandler(async (req, res) => {
         }
     });
 
-    // Existing chat → return it
+    
     if (existingConversation) {
         return res.status(200).json(
             new ApiResponse(
@@ -40,7 +40,7 @@ const createDirectConversation = asyncHandler(async (req, res) => {
         );
     }
 
-    // Check blocked
+    
     const connection = await Connection.findOne({
         status: "blocked",
         $or: [
@@ -62,7 +62,7 @@ const createDirectConversation = asyncHandler(async (req, res) => {
         );
     }
 
-    // Check friendship
+    
     const friendship = await Connection.findOne({
         status: "friend",
         $or: [
@@ -102,8 +102,8 @@ const createDirectConversation = asyncHandler(async (req, res) => {
 });
 
 const getMyConversations = asyncHandler(async (req, res) => {
-    // Backfill a direct conversation for existing friendships as well.
-    // This also fixes friendships that were accepted before auto-chat creation was added.
+    
+    
     const friendships = await Connection.find({
         status: "friend",
         $or: [

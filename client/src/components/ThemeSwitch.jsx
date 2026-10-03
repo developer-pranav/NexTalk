@@ -22,7 +22,7 @@ export default function ThemeSwitch() {
                         <button
                             key={key}
                             onClick={() => setThemePreference(key)}
-                            className="flex flex-col items-center gap-1.5 rounded-lg py-2.5 text-[12.5px] font-medium transition-all duration-150"
+                            className="flex flex-col items-center gap-1.5 rounded-lg py-2.5 text-[12.5px] font-medium transition-all duration-150 cursor-pointer"
                             style={{
                                 background: active ? "var(--surface)" : "transparent",
                                 color: active ? "var(--accent)" : "var(--text-muted)",

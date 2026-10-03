@@ -4,6 +4,7 @@ import {
     loginUser,
     logoutUser,
     registerUser,
+    googleRegisterUser,
 } from "../api/users";
 
 const AuthContext = createContext(null);
@@ -31,8 +32,15 @@ export function AuthProvider({ children }) {
         const response = await registerUser(data);
         const registeredUser = response?.data || null;
 
-        // The register endpoint sets the access/refresh cookies, so a
-        // successful registration is already an authenticated session.
+        setUser(registeredUser);
+
+        return registeredUser;
+    }, []);
+
+    const googleRegister = useCallback(async (data) => {
+        const response = await googleRegisterUser(data);
+        const registeredUser = response?.data || null;
+
         setUser(registeredUser);
 
         return registeredUser;
@@ -41,7 +49,9 @@ export function AuthProvider({ children }) {
     const login = useCallback(async (credentials) => {
         const response = await loginUser(credentials);
         const loggedInUser = response?.data || null;
+
         setUser(loggedInUser);
+
         return loggedInUser;
     }, []);
 
@@ -63,19 +73,37 @@ export function AuthProvider({ children }) {
             loading,
             isAuthenticated: Boolean(user),
             register,
+            googleRegister,
             login,
             logout,
             updateUser,
             restoreSession,
         }),
-        [user, loading, register, login, logout, updateUser, restoreSession]
+        [
+            user,
+            loading,
+            register,
+            googleRegister,
+            login,
+            logout,
+            updateUser,
+            restoreSession,
+        ]
     );
 
-    return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+    return (
+        <AuthContext.Provider value={value}>
+            {children}
+        </AuthContext.Provider>
+    );
 }
 
 export function useAuth() {
     const context = useContext(AuthContext);
-    if (!context) throw new Error("useAuth must be used within AuthProvider");
+
+    if (!context) {
+        throw new Error("useAuth must be used within AuthProvider");
+    }
+
     return context;
 }

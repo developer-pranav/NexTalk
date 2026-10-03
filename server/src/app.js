@@ -7,7 +7,7 @@ const app = express();
 
 app.use(
     cors({
-        origin: "http://localhost:5173",
+        origin: process.env.CLIENT_URL || "http://localhost:5173",
         credentials: true,
         methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allowedHeaders: ["Content-Type", "Authorization"],
@@ -21,7 +21,7 @@ app.use(express.static("public"));
 app.use(cookieParser());
 
 
-// Routes
+
 import userRoutes from "./routes/user.routes.js";
 import connectionRoutes from "./routes/connection.routes.js";
 import conversationRoutes from "./routes/conversation.routes.js";

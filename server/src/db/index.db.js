@@ -4,7 +4,7 @@ import { configDotenv } from 'dotenv';
 
 const connectDB = async () => {
     try {
-        const connectionInstance = await mongoose.connect(process.env.MONGODB_URI, {dbName: 'TalkVerse'})
+        const connectionInstance = await mongoose.connect(process.env.MONGODB_URI, {dbName: 'NexTalk'})
         console.log(`MongoDB Connected !! DB Host: ${connectionInstance.connection.host}`)
     } catch (error) {
         console.log("MongoDB connection error ", error);

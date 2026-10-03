@@ -1,7 +1,7 @@
 import Avatar from "./Avatar";
 
 export default function MobileChatCard({ contact, unread, isTyping, lastMessage, onSelect, delay = 0 }) {
-    // Use the persisted Conversation.lastMessage when the chat has not been opened yet.
+    
     const displayLastMessage = lastMessage || (contact.lastMessage ? {
         text: contact.lastMessage,
         time: contact.lastMessageTime,

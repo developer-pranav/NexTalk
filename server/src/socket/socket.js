@@ -37,7 +37,7 @@ function removeOnlineSocket(userId, socketId) {
 
 const initializeSocket = (io) => {
 
-    // Socket Authentication
+    
     io.use(async (socket, next) => {
         try {
             const cookies = socket.handshake.headers.cookie;
@@ -94,13 +94,13 @@ const initializeSocket = (io) => {
 
         socket.join(`user:${userId}`);
 
-        // Register this socket as online
+        
         const becameOnline = addOnlineSocket(
             userId,
             socket.id
         );
 
-        // Keep database presence in sync
+        
         await User.findByIdAndUpdate(
             socket.user._id,
             {
@@ -109,20 +109,20 @@ const initializeSocket = (io) => {
             }
         );
 
-        // Send current online users to this client
+        
         socket.emit("presenceSnapshot", {
             userIds: Array.from(onlineSockets.keys()),
         });
 
-        // Tell everyone else that this user came online
+        
         if (becameOnline) {
             socket.broadcast.emit("userOnline", {
                 userId: socket.user._id,
             });
         }
 
-        // Mark pending messages as delivered when the user comes online.
-        // This does NOT mark them as seen.
+        
+        
         try {
             const conversations = await Conversation.find({
                 members: socket.user._id,
@@ -187,7 +187,7 @@ const initializeSocket = (io) => {
         }
 
 
-        // Join Conversation
+        
         socket.on(
             "joinConversation",
             async (conversationId) => {
@@ -238,7 +238,7 @@ const initializeSocket = (io) => {
         );
 
 
-        // Leave Conversation
+        
         socket.on(
             "leaveConversation",
             (conversationId) => {
@@ -253,7 +253,7 @@ const initializeSocket = (io) => {
         );
 
 
-        // Send Message
+        
         socket.on(
             "sendMessage",
             async (
@@ -302,7 +302,7 @@ const initializeSocket = (io) => {
                     }
 
 
-                    // Block check for direct conversation
+                    
                     if (conversation.type === "direct") {
 
                         const otherUser =
@@ -340,7 +340,7 @@ const initializeSocket = (io) => {
                     }
 
 
-                    // Validate an optional reply target before saving.
+                    
                     let replyMessage = null;
 
                     if (replyTo) {
@@ -361,7 +361,7 @@ const initializeSocket = (io) => {
                     }
 
 
-                    // Save message
+                    
                     const message =
                         await Message.create({
                             conversation:
@@ -380,14 +380,14 @@ const initializeSocket = (io) => {
                         });
 
 
-                    // Update last message
+                    
                     conversation.lastMessage =
                         message._id;
 
                     await conversation.save();
 
 
-                    // Populate sender
+                    
                     const populatedMessage =
                         await Message.findById(
                             message._id
@@ -408,7 +408,7 @@ const initializeSocket = (io) => {
                             });
 
 
-                    // Create notifications for the other conversation members.
+                    
                     const recipientIds = conversation.members
                         .filter((member) => String(member) !== String(socket.user._id));
 
@@ -430,7 +430,7 @@ const initializeSocket = (io) => {
                         )
                     );
 
-                    // Realtime message event stays unchanged.
+                    
                     const socketMessage =
                         populatedMessage.toObject();
 
@@ -467,8 +467,8 @@ const initializeSocket = (io) => {
         );
 
 
-        // Forward an existing message into another conversation.
-        // The original media/content is reused; no new Cloudinary upload is needed.
+        
+        
         socket.on(
             "forwardMessage",
             async ({
@@ -529,7 +529,7 @@ const initializeSocket = (io) => {
                         );
                     }
 
-                    // Sender must also have access to the original conversation.
+                    
                     const sourceConversation =
                         await Conversation.findById(
                             original.conversation
@@ -644,9 +644,9 @@ const initializeSocket = (io) => {
         );
 
 
-        // Broadcast a media message that was already persisted by the REST API.
-        // The sender adds the saved message locally; only the other participants
-        // need the realtime event, preventing duplicates in the sender's chat.
+        
+        
+        
         socket.on(
             "broadcastMediaMessage",
             async ({
@@ -758,7 +758,7 @@ const initializeSocket = (io) => {
         );
 
 
-        // Typing
+        
         socket.on(
             "typing",
             (conversationId) => {
@@ -779,7 +779,7 @@ const initializeSocket = (io) => {
         );
 
 
-        // Stop Typing
+        
         socket.on(
             "stopTyping",
             (conversationId) => {
@@ -798,7 +798,7 @@ const initializeSocket = (io) => {
         );
 
 
-        // Mark Message Delivered
+        
         socket.on(
             "markMessageDelivered",
             async ({
@@ -894,7 +894,7 @@ const initializeSocket = (io) => {
         );
 
 
-        // Mark Messages Seen
+        
         socket.on(
             "markMessagesSeen",
             async (conversationId) => {
@@ -996,9 +996,9 @@ const initializeSocket = (io) => {
         );
 
 
-        // Disconnect
-        // IMPORTANT: This stays INSIDE the connection callback
-        // so `socket` is in scope.
+        
+        
+        
         socket.on(
             "disconnect",
             async () => {
@@ -1006,9 +1006,9 @@ const initializeSocket = (io) => {
                 const userId =
                     String(socket.user._id);
 
-                // Only mark offline when the user has no other active sockets.
-                // This prevents one tab closing from marking the user offline
-                // while another tab/device is still connected.
+                
+                
+                
                 const becameOffline =
                     removeOnlineSocket(
                         userId,
@@ -1037,9 +1037,9 @@ const initializeSocket = (io) => {
             }
         );
 
-    }); // closes io.on("connection")
+    }); 
 
-}; // closes initializeSocket
+}; 
 
 
 export {

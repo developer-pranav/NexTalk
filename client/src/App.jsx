@@ -5,6 +5,8 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
 import LoginPage from "./pages/auth/LoginPage";
 import RegisterPage from "./pages/auth/RegisterPage";
+import ForgotPasswordPage from "./pages/auth/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/auth/ResetPasswordPage";
 import { AUTH_ROUTES, navigate, usePathname } from "./router/router";
 import { useBreakpoint } from "./hooks/useBreakpoint";
 import DesktopLayout from "./layouts/DesktopLayout";
@@ -17,18 +19,32 @@ function AuthenticatedApp() {
 
     useEffect(() => {
         if (loading) return;
-        const isAppRoute = pathname === AUTH_ROUTES.HOME || pathname === "/search" || pathname === "/requests" || pathname === "/profile" || pathname === "/new-group" || pathname.startsWith("/chat/");
+        const isAppRoute = pathname === AUTH_ROUTES.HOME || pathname === AUTH_ROUTES.FORGOT_PASSWORD || pathname === AUTH_ROUTES.RESET_PASSWORD || pathname === "/search" || pathname === "/requests" || pathname === "/profile" || pathname === "/new-group" || pathname.startsWith("/chat/");
         if (isAuthenticated && !isAppRoute) {
             navigate(AUTH_ROUTES.HOME, { replace: true });
             return;
         }
-        if (!isAuthenticated && pathname !== AUTH_ROUTES.LOGIN && pathname !== AUTH_ROUTES.REGISTER) {
+        const isAuthRoute =
+            pathname === AUTH_ROUTES.LOGIN ||
+            pathname === AUTH_ROUTES.REGISTER ||
+            pathname === AUTH_ROUTES.FORGOT_PASSWORD ||
+            pathname === AUTH_ROUTES.RESET_PASSWORD;
+
+        if (!isAuthenticated && !isAuthRoute) {
             navigate(AUTH_ROUTES.LOGIN, { replace: true });
         }
     }, [isAuthenticated, loading, pathname]);
 
     if (loading) {
         return <div className="grid h-full w-full place-items-center" style={{ background: "var(--bg)", color: "var(--text-muted)" }}>Loading…</div>;
+    }
+
+    if (pathname === AUTH_ROUTES.FORGOT_PASSWORD) {
+        return <ForgotPasswordPage />;
+    }
+
+    if (pathname === AUTH_ROUTES.RESET_PASSWORD) {
+        return <ResetPasswordPage />;
     }
 
     if (isAuthenticated) {
