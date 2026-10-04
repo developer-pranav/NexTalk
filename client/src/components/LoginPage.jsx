@@ -114,21 +114,41 @@ export default function LoginPage() {
     const handleLogin = async (e) => {
         e.preventDefault();
         setToast("");
-
+    
         const usernameEmail = loginForm.usernameEmail.trim();
+    
         if (!usernameEmail || !loginForm.password) {
             notify("Please enter your username/email and password.", "error");
             return;
         }
-
+    
         setLoading(true);
+    
         try {
             await login({
                 usernameEmail,
                 password: loginForm.password,
             });
         } catch (err) {
-            notify(getErrorMessage(err, "Invalid username/email or password."), "error");
+            // Brave detection
+            const isBrave =
+                navigator.brave &&
+                typeof navigator.brave.isBrave === "function";
+    
+            if (isBrave) {
+                notify(
+                    "Login couldn't be completed. If you're using Brave, disable Shields for this site and try again.",
+                    "error"
+                );
+            } else {
+                notify(
+                    getErrorMessage(
+                        err,
+                        "Login failed. Please check your credentials and try again."
+                    ),
+                    "error"
+                );
+            }
         } finally {
             setLoading(false);
         }
