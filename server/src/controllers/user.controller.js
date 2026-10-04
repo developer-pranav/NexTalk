@@ -10,8 +10,8 @@ import { sendPasswordResetEmail } from "../utils/email.js";
 
 const cookieOptions = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: process.env.NODE_ENV === "production" ? "None" : "Lax",
+    secure: true,
+    sameSite: "None",
 };
 
 const googleLogin = asyncHandler(async (req, res) => {
