@@ -149,7 +149,7 @@ export default function MessageList({ chatId, messages, isGroup, onNotify, onRep
         <div
             ref={scrollRef}
             onScroll={handleScroll}
-            className="relative scroll-thin h-full overflow-y-auto px-3 sm:px-5 pt-20 pb-20"
+            className="relative scroll-thin h-full min-h-0 overflow-y-auto overscroll-contain px-3 sm:px-5 pt-20 pb-24"
             style={{ background: "var(--bg)" }}
         >
             {selectedIds.length > 0 && (
