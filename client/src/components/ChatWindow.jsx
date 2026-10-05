@@ -95,9 +95,10 @@ export default function ChatWindow({ contact, onBack }) {
 
     return (
         <div
-            className="relative h-full min-h-0 overflow-hidden"
+            className="fixed inset-0 z-10 h-[100dvh] min-h-0 overflow-hidden sm:relative sm:inset-auto sm:z-auto sm:h-full"
             style={{
                 background: "var(--bg)",
+                overscrollBehavior: "none",
                 height: "100%",
                 minHeight: 0,
             }}
