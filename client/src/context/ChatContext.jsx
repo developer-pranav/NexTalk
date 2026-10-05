@@ -37,6 +37,19 @@ function groupInitials(name) {
         .toUpperCase();
 }
 
+const AVATAR_PALETTE = [
+    "#6366f1",
+    "#8b5cf6",
+    "#ec4899",
+    "#ef4444",
+    "#f97316",
+    "#eab308",
+    "#22c55e",
+    "#14b8a6",
+    "#06b6d4",
+    "#3b82f6",
+];
+
 function colorFor(seed) {
     const str = String(seed || "");
     let hash = 0;
@@ -930,19 +943,13 @@ export function ChatProvider({ children }) {
                     return next;
                 });
             } catch (error) {
-                console.error("❌ LOAD CONVERSATIONS ERROR:", error);
-                console.error("❌ ERROR RESPONSE:", error?.response);
-                console.error("❌ ERROR DATA:", error?.response?.data);
-                console.error("❌ ERROR MESSAGE:", error?.message);
-                console.error("❌ ERROR STACK:", error?.stack);
-
-            if (!cancelled) {
-                setContactsError(
-                error?.response?.data?.message ||
-                error?.message ||
-                "Failed to load conversations"
-            );
-        }
+                if (!cancelled) {
+                    setContactsError(
+                    error?.response?.data?.message ||
+                    error?.message ||
+                    "Failed to load conversations"
+                );
+            }
         } finally {
                 if (!cancelled) setContactsLoading(false);
             }
