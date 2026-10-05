@@ -930,12 +930,20 @@ export function ChatProvider({ children }) {
                     return next;
                 });
             } catch (error) {
-                if (!cancelled) {
-                    setContactsError(
-                        error?.response?.data?.message || "Failed to load conversations"
-                    );
-                }
-            } finally {
+                console.error("❌ LOAD CONVERSATIONS ERROR:", error);
+                console.error("❌ ERROR RESPONSE:", error?.response);
+                console.error("❌ ERROR DATA:", error?.response?.data);
+                console.error("❌ ERROR MESSAGE:", error?.message);
+                console.error("❌ ERROR STACK:", error?.stack);
+
+            if (!cancelled) {
+                setContactsError(
+                error?.response?.data?.message ||
+                error?.message ||
+                "Failed to load conversations"
+            );
+        }
+        } finally {
                 if (!cancelled) setContactsLoading(false);
             }
         }
