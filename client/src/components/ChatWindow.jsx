@@ -96,7 +96,11 @@ export default function ChatWindow({ contact, onBack }) {
     return (
         <div
             className="relative h-full min-h-0 overflow-hidden"
-            style={{ background: "var(--bg)" }}
+            style={{
+                background: "var(--bg)",
+                height: "100%",
+                minHeight: 0,
+            }}
         >
 
             {isLoadingMessages ? (
@@ -193,7 +197,12 @@ export default function ChatWindow({ contact, onBack }) {
                 }}
             />
 
-            <div className="absolute inset-x-0 bottom-0 z-20">
+            <div
+                className="absolute inset-x-0 bottom-0 z-20"
+                style={{
+                    paddingBottom: "env(safe-area-inset-bottom)",
+                }}
+            >
                 <MessageInput
                     onSend={(text, reply) => {
                         sendMessage(contact.id, text, reply);
